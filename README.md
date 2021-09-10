@@ -1,1 +1,1 @@
-# -LP-Shipping-method-Prestashop
+# LP-Shipping-method-Prestashop

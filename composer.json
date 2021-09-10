@@ -1,0 +1,32 @@
+{
+    "name": "ps/lpshipping",
+    "description": "",
+    "config": {
+        "preferred-install": "dist",
+        "optimize-autoloader": true,
+        "prepend-autoloader": false,
+        "platform": {
+            "php": "5.6"
+        }
+    },
+    "require": {
+        "iio/libmergepdf": "^3.0"
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-latest",
+        "prestashop/php-dev-tools": "3.*"
+    },
+    "autoload": {
+        "classmap": [
+            "lpshipping.php",
+            "controllers",
+            "classes",
+            "api",
+            "services",
+            "sql",
+            "upgrade"
+        ]
+    },
+    "author": "lpshipping",
+    "license": "AFL-3.0"
+}

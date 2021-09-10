@@ -1,0 +1,103 @@
+.lpshipping-container {
+    margin-top: 8px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: #ffffff;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.lps-panel-heading {
+    padding: 8px 4px;
+
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: row;
+    -ms-flex-direction: row;
+    flex-direction: row;
+    -webkit-flex-wrap: nowrap;
+    -ms-flex-wrap: nowrap;
+    flex-wrap: nowrap;
+    -webkit-justify-content: space-between;
+    -ms-flex-pack: justify;
+    justify-content: space-between;
+    -webkit-align-content: center;
+    -ms-flex-line-pack: center;
+    align-content: center;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+}
+
+.lps-panel-divider {
+    border: 0;
+    border-top: 1px solid #eee;
+    margin-bottom: 8px !important;
+    margin-top: 8px !important;
+}
+
+.lps-card-header {
+    font-weight: 600;
+    line-height: 24px;
+    line-height: 1.5rem;
+    font-size: 1rem;
+}
+
+.lpshipping-container .field-group {
+    margin-top: 8px;
+}
+
+.lpshipping-container label {
+    display: inline-block;
+    width: 100%;
+    text-align: left !important;
+    margin-bottom: 0;
+}
+
+.lpshipping-container input, .lpshipping-container select {
+    margin-top: 4px;
+    width: 100%;
+    padding: .375rem .4375rem;
+    border-radius: 0;
+    border: 1px solid #cccccc;
+}
+
+.lpshipping-terminal-box span.select2-container {
+    width: 100% !important;
+    margin-top: 4px;
+}
+
+.lps-form-btns {
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: row-reverse;
+    -ms-flex-direction: row-reverse;
+    flex-direction: row-reverse;
+    -webkit-flex-wrap: nowrap;
+    -ms-flex-wrap: nowrap;
+    flex-wrap: nowrap;
+    -webkit-justify-content: flex-start;
+    -ms-flex-pack: start;
+    justify-content: flex-start;
+    -webkit-align-content: center;
+    -ms-flex-line-pack: center;
+    align-content: center;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+}
+
+.select2-container .select2-selection--single {
+    height: auto !important;
+}
+
+#lpshipping-error-box {
+    width: 98%;
+    margin: auto;
+}
+
+.lpshipping-declaration-edit-modal {
+    
+}   

@@ -293,7 +293,7 @@ class LPShippingDbSetup
 
                 Db::getInstance()->insert('carrier_group', $data);
             }
-            if (!$carrier['allZones']) {
+            if (!$carrier_row['allZones']) {
                 $carrier->addZone($europeZone->id);
             } else {
                 $zones = Zone::getZones(true);

@@ -474,6 +474,16 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
                 }
             } else {
                 $this->errors[] = $this->module->l('Failed authentication with LP API services', self::CLASS_NAME);
+                $apiError = Configuration::get('LP_SHIPPING_LAST_ERROR');
+                try {
+                    $apiError = unserialize($apiError);
+                } catch (Exception $e) {
+
+                }
+                if (isset($apiError['message'])) {
+                    $this->errors[] = $apiError['message'];
+                    Configuration::updateValue('LP_SHIPPING_LAST_ERROR', '');
+                }
             }
         }
 

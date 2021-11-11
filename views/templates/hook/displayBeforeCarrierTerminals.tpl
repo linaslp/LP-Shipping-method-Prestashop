@@ -4,8 +4,8 @@
         {$error}
     </div>
 {elseif isset($terminals) && !empty($terminals)}
-    <div class="lpshipping_carrier col-xs-12" data-carrier-id="{$id_carrier}" data-cart-id="{$id_cart}">
-        <select id="lpshipping_express_terminal" name="lpshipping_express_terminal">
+    <div class="lpshipping_carrier col-xs-12 col-lg-12" data-carrier-id="{$id_carrier}" data-cart-id="{$id_cart}">
+        <select id="lpshipping_express_terminal" name="lpshipping_express_terminal" class="form-control" style="width: 100%">
             <option value="-1">{$select_terminal_message}</option>
 
             {foreach $terminals as $city => $terminals_by_city}

@@ -31,44 +31,58 @@ $(document).ready( function () {
     registerListeners();
 });
 
-// function registerListeners() {
-//     $(document).on('click', '[name="confirmDeliveryOption"], [name="processCarrier"], body#order-opc #HOOK_PAYMENT .payment_module a', function (e) {
-//         hideErrors();
-//
-//         // send update to controller, create/update order with delivery information
-//         if (typeof carriersData.selectedCarrierId === 'undefined' || carriersData.selectedCarrierId === null) {
-//             carriersData.selectedCarrierId = getSelectedCarrier();
-//         }
-//
-//         if (isCarrierLpShipping(carriersData.selectedCarrierId)) {
-//
-//             if (isTerminalDelivery(carriersData.selectedCarrierId)) {
-//                 if (carriersData.terminalId === null) {
-//                     // show error and return
-//                     showError(carriersData.terminalNotSelected, carriersData.selectedCarrierId);
-//                     return false;
-//                 }
-//             }
-//
-//             submitOrder($(this), e);
-//         }
-//
-//     });
-//
-//     $(document).on('change', '#lpshipping_express_terminal', function () {
-//         var terminalId = $('#lpshipping_express_terminal').val();
-//         carriersData.terminalId = terminalId;
-//     });
-//
-//     $(document).on('change', '[name^="delivery_option"]', function () {
-//         carriersData.selectedCarrierId = getSelectedCarrier();
-//         carriersData.terminalId = null; // null it on change of delivery type
-//     });
-//
-//     setTimeout(function () {
-//         $('#lpshipping_express_terminal').select2();
-//     }, 250);
-// }
+function registerListeners() {
+    $(document).on('click', '[name="confirmDeliveryOption"], [name="processCarrier"], body#order-opc #HOOK_PAYMENT .payment_module a', function (e) {
+        hideErrors();
+
+        // send update to controller, create/update order with delivery information
+        if (typeof carriersData.selectedCarrierId === 'undefined' || carriersData.selectedCarrierId === null) {
+            carriersData.selectedCarrierId = getSelectedCarrier();
+        }
+
+        if (isCarrierLpShipping(carriersData.selectedCarrierId)) {
+
+            if (isTerminalDelivery(carriersData.selectedCarrierId)) {
+                if (carriersData.terminalId === null) {
+                    // show error and return
+                    showError(carriersData.terminalNotSelected, carriersData.selectedCarrierId);
+                    return false;
+                }
+            }
+
+            submitOrder($(this), e);
+        }
+
+    });
+
+    $(document).on('change', '#lpshipping_express_terminal', function () {
+        var terminalId = $('#lpshipping_express_terminal').val();
+        carriersData.terminalId = terminalId;
+    });
+
+    if (!isPs17 && $('[name^="delivery_option"]')[0]) {
+        var key = $('[name^="delivery_option"]:checked').data('key');
+        var id_address = parseInt($('[name^="delivery_option"]:checked').data('id_address'));
+        updateExtraCarrier(key, id_address)
+    }
+
+    $(document).on('change', '[name^="delivery_option"]', function () {
+        carriersData.selectedCarrierId = getSelectedCarrier();
+        carriersData.terminalId = null; // null it on change of delivery type
+        if (isPs17) {
+            return;
+        }
+        var key = $(this).data('key');
+        var id_address = parseInt($(this).data('id_address'));
+        updateExtraCarrier(key, id_address)
+        var content = $('.lpshipping_carrier_container');
+        content.hide();
+    });
+
+    setTimeout(function () {
+        $('#lpshipping_express_terminal').select2();
+    }, 250);
+}
 
 /**
  * Form data for order sending

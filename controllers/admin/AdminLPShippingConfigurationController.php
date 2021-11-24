@@ -761,3 +761,4 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
         }
     }
 }
+

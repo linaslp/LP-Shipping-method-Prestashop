@@ -1,4 +1,4 @@
-<div class="lp_carrier_container unvisible" data-id-carrier="{$id_carrier}" data-cart-id="{$id_cart}">
+<div class="lpshipping_carrier_container unvisible" data-id-carrier="{$id_carrier}" data-cart-id="{$id_cart}">
     {$terminals_content}
 </div>
 

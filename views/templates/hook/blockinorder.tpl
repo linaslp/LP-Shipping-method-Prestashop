@@ -472,7 +472,6 @@
             let boxesTemplatesBox = $('#lpshipping-template-sizes-box');
 
             let selectedCarrierData;
-            console.log(carriers);
 
             for (carrierObj of carriers) {
                 if (carrierObj.configuration_name === carrierVal) {

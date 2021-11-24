@@ -50,6 +50,7 @@ Thumbs.db
 
 /api/downloads
 /vendor
-.env
-config_lt.xml
 config.xml
+config_lt.xml
+
+.env

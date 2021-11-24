@@ -450,7 +450,7 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
         $callCourier = $config['LP_SHIPPING_CALL_COURIER_ACTIVE'];
         $lpService = $config['LP_SHIPPING_SERVICE_ACTIVE'];
         $lpExpressService = $config['LP_SHIPPING_EXPRESS_SERVICE_ACTIVE'];
-        $shipmentSendingType = isset($config['LP_SHIPPING_SHIPMENT_SENDING_TYPES']) ? $config['LP_SHIPPING_SHIPMENT_SENDING_TYPES'] : '';
+        $shipmentSendingType = isset($config['LP_SHIPPING_SHIPMENT_SENDING_TYPES']) ? $config['LP_SHIPPING_SHIPMENT_SENDING_TYPES'] : [];
         $terminalDeliveryType = isset($config['LP_SHIPPING_ORDER_TERMINAL_TYPE']) ? $config['LP_SHIPPING_ORDER_TERMINAL_TYPE'] : '';
         $addressDeliveryType = isset($config['LP_SHIPPING_ORDER_HOME_TYPE']) ? $config['LP_SHIPPING_ORDER_HOME_TYPE'] : '';
         $postDeliveryType = isset($config['LP_SHIPPING_ORDER_POST_TYPE']) ? $config['LP_SHIPPING_ORDER_POST_TYPE'] : '';
@@ -469,9 +469,7 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
 
             if (LPShippingRequest::authenticate()) {
                 $this->postAuthSetup();
-                if ($shipmentSendingType) {
-                    $this->activateSelectedCarriers($shipmentSendingType);
-                }
+                $this->activateSelectedCarriers($shipmentSendingType);
             } else {
                 $this->errors[] = $this->module->l('Failed authentication with LP API services', self::CLASS_NAME);
                 $apiError = Configuration::get('LP_SHIPPING_LAST_ERROR');
@@ -547,14 +545,14 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
         }
 
         // @TODO LPShipping check for active services via API and throw error in case service is not allowed
-        if (empty($lpService) && empty($lpExpressService)) {
-            $this->errors[] = $this->module->l('Select at least one service (LP, LP Express) to use', self::CLASS_NAME);
-        }
+//        if (empty($lpService) && empty($lpExpressService)) {
+//            $this->errors[] = $this->module->l('Select at least one service (LP, LP Express) to use', self::CLASS_NAME);
+//        }
 
         // @TODO LPShipping check for active services via API and throw error in case service is not allowed
-        if (empty($shipmentSendingType)) {
-            $this->errors[] = $this->module->l('Select shipment sending type(s)', self::CLASS_NAME);
-        }
+//        if (empty($shipmentSendingType)) {
+//            $this->errors[] = $this->module->l('Select shipment sending type(s)', self::CLASS_NAME);
+//        }
 
         if (empty($defaultLpExpressBoxSize)) {
             $this->errors[] = $this->module->l('Select default LP Express box size', self::CLASS_NAME);

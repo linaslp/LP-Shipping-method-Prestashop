@@ -89,7 +89,9 @@ class LPShipping extends CarrierModule
             // create tables with shipments delivery methods
             $setup = new LPShippingDbSetup();
             $setup->install();
-            $setup->installCarriers($this->getCarriers(), $this->name);
+            if (!$setup->installCarriers($this->getCarriers(), $this->name)) {
+                return false;
+            }
 
             // if (version_compare(_PS_VERSION_, '1.7', '<')) {
             //     $this->installAdminPageTabs();

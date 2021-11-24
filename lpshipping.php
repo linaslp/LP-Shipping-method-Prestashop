@@ -66,7 +66,6 @@ class LPShipping extends CarrierModule
         $this->ps_versions_compliancy = ['min' => '1.6', 'max' => _PS_VERSION_];
 
         $this->logger = new Logger(_LPSHIPPING_ROOT_ . '/logs/', ['create_file_on_awake' => false]);
-
 //        if (version_compare(_PS_VERSION_, '1.7', '>=')) {
 //            foreach ($this->getRequiredTabsForInstallation() as $tab) {
 //                $this->tabs[] = $tab;
@@ -89,7 +88,9 @@ class LPShipping extends CarrierModule
             // create tables with shipments delivery methods
             $setup = new LPShippingDbSetup();
             $setup->install();
-            $setup->installCarriers($this->getCarriers(), $this->name);
+      if (!$setup->installCarriers($this->getCarriers(), $this->name)) {
+                return false;
+            }
 
             // if (version_compare(_PS_VERSION_, '1.7', '<')) {
             //     $this->installAdminPageTabs();
@@ -109,6 +110,8 @@ class LPShipping extends CarrierModule
             $this->registerHook('displayAdminOrder'); // hook to display module block in single order page
             $this->registerHook('actionAdminControllerSetMedia'); // hook to display module block in single order page
             $this->registerHook('actionValidateStepComplete');
+            $this->registerHook('actionCarrierProcess');
+
         }
 
         return $resultOfInstall;
@@ -128,6 +131,7 @@ class LPShipping extends CarrierModule
         $this->unregisterHook('displayCarrierExtraContent');
         $this->unregisterHook('orderDetailDisplayed');
         $this->unregisterHook('displayAdminOrder');
+        $this->unregisterHook('actionCarrierProcess');
 
         AdminLPShippingConfigurationController::removeConfiguration();
 
@@ -678,13 +682,14 @@ class LPShipping extends CarrierModule
 
             return $this->display(__FILE__, 'views/templates/hook/displayBeforeCarrierTerminals.tpl');
         } else {
+            $data['id_carrier'] = $params['carrier']['id'];
+            $this->context->smarty->assign($data);
+            $data['terminals_content'] = $this->display(__FILE__, 'views/templates/hook/displayBeforeCarrierTerminals.tpl');
             $data['id_carrier'] = $params['cart']->id_carrier;
-//            $data['terminals_content'] = $this->display(__FILE__, 'views/templates/hook/displayBeforeCarrierTerminals_1-6.tpl');
+            $data['id_address'] = $params['cart']->id_address_delivery;
             $this->context->smarty->assign($data);
 
-            return $this->display(__FILE__, 'views/templates/hook/displayBeforeCarrierTerminals.tpl');
-
-//            return $this->display(__FILE__, 'views/templates/hook/displayBeforeCarrierTerminals_1-6.tpl');
+            return $this->display(__FILE__, 'views/templates/hook/displayBeforeCarrierTerminals_1-6.tpl');
         }
     }
 
@@ -785,9 +790,13 @@ class LPShipping extends CarrierModule
         }
     }
 
-    public function hookActionValidateStepComplete($params)
+    public function hookActionCarrierProcess($params) {
+        return $this->hookActionValidateStepComplete($params, false);
+    }
+
+    public function hookActionValidateStepComplete($params, $isPs17 = true)
     {
-        if ($params['step_name'] !== 'delivery') {
+        if ($isPs17 && $params['step_name'] !== 'delivery') {
             return true;
         }
 

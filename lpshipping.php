@@ -317,9 +317,13 @@ class LPShipping extends CarrierModule
      */
     public function hookDisplayBackOfficeHeader()
     {
-        $this->context->controller->setMedia();
-        $this->context->controller->addCSS($this->_path . 'views/css/back.css');
-        $this->context->controller->addJS($this->_path . 'views/js/back.js');
+        if ($this->context->controller instanceof AdminOrdersController) {
+            $this->context->controller->setMedia();
+            $this->context->controller->addCSS($this->_path . 'views/css/back.css');
+            $this->context->controller->addJS($this->_path . 'views/js/back.js');
+            $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
+            $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');
+        }
     }
 
     public function hookActionAdminControllerSetMedia()

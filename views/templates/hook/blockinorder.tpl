@@ -413,7 +413,6 @@
         }
 
         function updateTerminalOptions(size){
-            debugger;
             let carrier = $('#lpshipping-carier-select');
             if ($(carrier).val() !== CARRIER_TERMINAL) {
                 return

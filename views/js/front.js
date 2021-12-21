@@ -32,27 +32,8 @@ $(document).ready( function () {
 });
 
 function registerListeners() {
-    $(document).on('click', '[name="confirmDeliveryOption"], [name="processCarrier"], body#order-opc #HOOK_PAYMENT .payment_module a', function (e) {
-        hideErrors();
-
-        // send update to controller, create/update order with delivery information
-        if (typeof carriersData.selectedCarrierId === 'undefined' || carriersData.selectedCarrierId === null) {
-            carriersData.selectedCarrierId = getSelectedCarrier();
-        }
-
-        if (isCarrierLpShipping(carriersData.selectedCarrierId)) {
-
-            if (isTerminalDelivery(carriersData.selectedCarrierId)) {
-                if (carriersData.terminalId === null) {
-                    // show error and return
-                    showError(carriersData.terminalNotSelected, carriersData.selectedCarrierId);
-                    return false;
-                }
-            }
-
-            submitOrder($(this), e);
-        }
-
+    $(document).on('click', '[name="confirmDeliveryOption"], [name="processCarrier"], body#order-opc #HOOK_PAYMENT .payment_module a, #confirm_order', function (e) {
+        saveLPShippingOrder(e);
     });
 
     $(document).on('change', '#lpshipping_express_terminal', function () {
@@ -132,7 +113,7 @@ function getErrorBoxByCarrierId(carrierId) {
     return errorBox;
 }
 
-function showError(message, carrierId) {
+function showLPTerminalError(message, carrierId) {
     var errBox = getErrorBoxByCarrierId(carrierId);
 
     $(errBox).html(message);
@@ -160,7 +141,7 @@ function submitOrder(proceedToPaymentsElement, event) {
         terminalId: carriersData.terminalId
     };
 
-    sendAjax('submitOrder', dataToSend, 
+    return sendAjax('submitOrder', dataToSend,
     function(data) {
         if ($(proceedToPaymentsElement).is('a') && $(proceedToPaymentsElement).attr('href'))
         {
@@ -173,12 +154,11 @@ function submitOrder(proceedToPaymentsElement, event) {
         event.preventDefault();
         event.stopPropagation();
 
-        console.log(data);
-        return;
+        return false;
     });
 }
 
-function sendAjax(action, data, successCallback, failedCallback) {
+async function sendAjax(action, data, successCallback, failedCallback) {
     var parameters = {
         'action': action,
         'LPShippingToken': LPShippingToken
@@ -186,7 +166,7 @@ function sendAjax(action, data, successCallback, failedCallback) {
 
     $.extend(parameters, data);
 
-    $.ajax({
+    await $.ajax({
         url: LPShippingAjax,
         type: "POST",
         data: parameters,
@@ -194,7 +174,7 @@ function sendAjax(action, data, successCallback, failedCallback) {
         success: function(data){
             if (data.success) {
                 if (typeof successCallback === 'function') {
-                    successCallback(data);
+                    return successCallback(data);
                 }
             } else {
                 if (typeof failedCallback === 'function') {
@@ -247,4 +227,28 @@ function movePS16ToCarrier(id_selected_lp_carrier, id_carrier_address) {
     container.append(content);
     content.removeClass('unvisible');
     content.slideDown();
+}
+
+function saveLPShippingOrder(e)
+{
+    hideErrors();
+
+    // send update to controller, create/update order with delivery information
+    if (typeof carriersData.selectedCarrierId === 'undefined' || carriersData.selectedCarrierId === null) {
+        carriersData.selectedCarrierId = getSelectedCarrier();
+    }
+
+    if (isCarrierLpShipping(carriersData.selectedCarrierId)) {
+
+        if (isTerminalDelivery(carriersData.selectedCarrierId)) {
+            if (carriersData.terminalId === null) {
+                // show error and return
+                showLPTerminalError(carriersData.terminalNotSelected, carriersData.selectedCarrierId);
+
+                return false;
+            }
+        }
+
+        return submitOrder($(this), e);
+    }
 }

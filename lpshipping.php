@@ -317,13 +317,12 @@ class LPShipping extends CarrierModule
      */
     public function hookDisplayBackOfficeHeader()
     {
-        if ($this->context->controller instanceof AdminOrdersController) {
-            $this->context->controller->setMedia();
-            $this->context->controller->addCSS($this->_path . 'views/css/back.css');
-            $this->context->controller->addJS($this->_path . 'views/js/back.js');
-            $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
-            $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');
-        }
+        $this->context->controller->setMedia();
+        $this->context->controller->addCSS($this->_path . 'views/css/back.css');
+        $this->context->controller->addJS($this->_path . 'views/js/back.js');
+        $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
+        $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');
+
     }
 
     public function hookActionAdminControllerSetMedia()
@@ -366,6 +365,8 @@ class LPShipping extends CarrierModule
         if ($isPs17) {
             $this->context->controller->registerJavascript('modules-lpshipping-select2-js', 'modules/' . $this->name . '/views/js/select2.min.js');
             $this->context->controller->registerStylesheet('modules-lpshipping-select2-css', 'modules/' . $this->name . '/views/css/select2.min.css');
+            $this->context->controller->registerJavascript('modules-lpshipping-js', 'modules/' . $this->name . '/views/js/front.js');
+            $this->context->controller->registerStylesheet('modules-lpshipping-css', 'modules/' . $this->name . '/views/css/front.css');
         } else {
             $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
             $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');
@@ -797,11 +798,13 @@ class LPShipping extends CarrierModule
         }
     }
 
-    public function hookActionCarrierProcess($params) {
+    public function hookActionCarrierProcess($params)
+    {
         $isPs17 = version_compare(_PS_VERSION_, '1.7.0', '>=');
         if ($isPs17) {
             return true;
         }
+
         return $this->hookActionValidateStepComplete($params, false);
     }
 
@@ -812,7 +815,7 @@ class LPShipping extends CarrierModule
         }
 
         $terminal = Tools::getValue('lpshipping_express_terminal');
-        if ((int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') === (int)$params['cart']->id_carrier && (int)$terminal == -1){
+        if ((int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') === (int)$params['cart']->id_carrier && (int)$terminal == -1) {
             $params['completed'] = false;
             $this->context->controller->errors[] =
                 $this->l('Please select terminal.');

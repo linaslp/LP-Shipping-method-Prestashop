@@ -340,7 +340,7 @@ class LPShipping extends CarrierModule
     public function hookHeader($params)
     {
         $isPs17 = version_compare(_PS_VERSION_, '1.7.0', '>=');
-        if ($this->context->controller instanceof OrderController) {
+        if ($this->context->controller instanceof OrderController || $this->context->controller instanceof TheCheckoutModuleFrontController) {
             Media::addJsDef([
                 'isPs17' => $isPs17,
                 'LPShippingToken' => Tools::getToken(false),
@@ -354,16 +354,19 @@ class LPShipping extends CarrierModule
                 'LPShippingCartId' => $params['cart']->id,
                 'MessageTerminalNotSelected' => $this->l('Please select a terminal'),
             ]);
+            if ($isPs17) {
+                $this->context->controller->registerJavascript('modules-lpshipping-js', 'modules/' . $this->name . '/views/js/front.js');
+                $this->context->controller->registerStylesheet('modules-lpshipping-css', 'modules/' . $this->name . '/views/css/front.css');
+            } else {
+                $this->context->controller->addJS($this->_path . 'views/js/front.js');
+                $this->context->controller->addCss($this->_path . 'views/css/front.css');
+            }
         }
 
         if ($isPs17) {
-            $this->context->controller->registerJavascript('modules-lpshipping-js', 'modules/' . $this->name . '/views/js/front.js');
-            $this->context->controller->registerStylesheet('modules-lpshipping-css', 'modules/' . $this->name . '/views/css/front.css');
             $this->context->controller->registerJavascript('modules-lpshipping-select2-js', 'modules/' . $this->name . '/views/js/select2.min.js');
             $this->context->controller->registerStylesheet('modules-lpshipping-select2-css', 'modules/' . $this->name . '/views/css/select2.min.css');
         } else {
-            $this->context->controller->addJS($this->_path . 'views/js/front.js');
-            $this->context->controller->addCss($this->_path . 'views/css/front.css');
             $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
             $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');
         }

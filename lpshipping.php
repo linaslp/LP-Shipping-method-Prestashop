@@ -53,7 +53,7 @@ class LPShipping extends CarrierModule
     {
         $this->name = 'lpshipping';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.0.9';
+        $this->version = '1.0.10';
         $this->author = 'Kirotech';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -364,6 +364,8 @@ class LPShipping extends CarrierModule
         if ($isPs17) {
             $this->context->controller->registerJavascript('modules-lpshipping-select2-js', 'modules/' . $this->name . '/views/js/select2.min.js');
             $this->context->controller->registerStylesheet('modules-lpshipping-select2-css', 'modules/' . $this->name . '/views/css/select2.min.css');
+            $this->context->controller->registerJavascript('modules-lpshipping-js', 'modules/' . $this->name . '/views/js/front.js');
+            $this->context->controller->registerStylesheet('modules-lpshipping-css', 'modules/' . $this->name . '/views/css/front.css');
         } else {
             $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
             $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');

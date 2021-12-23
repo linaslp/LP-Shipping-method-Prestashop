@@ -53,7 +53,7 @@ class LPShipping extends CarrierModule
     {
         $this->name = 'lpshipping';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.0.9';
+        $this->version = '1.0.10';
         $this->author = 'Kirotech';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -322,7 +322,6 @@ class LPShipping extends CarrierModule
         $this->context->controller->addJS($this->_path . 'views/js/back.js');
         $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
         $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');
-
     }
 
     public function hookActionAdminControllerSetMedia()

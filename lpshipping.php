@@ -978,7 +978,19 @@ class LPShipping extends CarrierModule
 
         $deliveryAddress = new Address($cart->id_address_delivery);
         $country = new Country($deliveryAddress->id_country);
-        if ($country->iso_code === 'LT' || $country->iso_code == null) {
+        if ($country->iso_code == null) {
+            if (
+                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_HOME') ||
+                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_ABROAD') ||
+                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') ||
+                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_POST') ||
+                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_CARRIER_ABROAD')
+            ) {
+                return $shippingCost;
+            }
+        }
+
+        if ($country->iso_code === 'LT') {
             if (
                 (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_HOME') ||
                 (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_ABROAD') ||

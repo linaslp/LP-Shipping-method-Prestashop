@@ -20,13 +20,13 @@ class LPShippingOrderService
     const ERROR_ZIP_CREATE = 'Failed to create ZIP file';
 
 
-
     /**
      * @var string $baseDownloadPath path to downloaded files from LP API; with ending forward slash
      */
     private $baseDownloadPath;
 
     private $errors = [];
+    private $moduleInstance = null;
 
     public function __construct()
     {
@@ -37,6 +37,8 @@ class LPShippingOrderService
                 throw new \RuntimeException(sprintf('Directory "%s" was not created', $concurrentDirectory));
             }
         }
+
+        $this->moduleInstance = Module::getInstanceByName('lpshipping');
     }
 
 
@@ -84,6 +86,82 @@ class LPShippingOrderService
         return $address;
     }
 
+
+    /**
+     * Save order from user side to BE
+     *
+     * @param array orderData from views/js/front.js
+     */
+    public function saveOrder(Cart $cart)
+    {
+        $lpOrderService = new LPShippingOrderService();
+        $carrierInfo = $this->getSelectedCarrier($cart->id_carrier);
+        $selectedCarrier = $carrierInfo['configuration_name'];
+        $senderAddress = $lpOrderService->formSenderAddressType();
+        if ($carrierInfo) {
+            /* Create LPShippingOrder object */
+            $lpOrderArray = LPShippingOrder::getOrderByCartId($cart->id);
+            $cart = new Cart($cart->id);
+
+            if (is_array($lpOrderArray) && !empty($lpOrderArray)) {
+                $lpOrder = new LPShippingOrder($lpOrderArray['id_lpshipping_order']);
+
+                if (Validate::isLoadedObject($lpOrder)) {
+                    $lpOrder->selected_carrier = $carrierInfo['configuration_name'];
+                    $lpOrder->weight = $cart->getTotalWeight();
+                    $lpOrder->cod_available = $lpOrderService->isCodAvailable($cart->id);
+                    $lpOrder->cod_amount = $cart->getOrderTotal();
+                    $lpOrder->post_address = $this->validateAndReturnFormedAddress($cart->id);
+                    $lpOrder->sender_locality = $senderAddress->getLocality();
+                    $lpOrder->sender_street = $senderAddress->getStreet();
+                    $lpOrder->sender_building = $senderAddress->getBuilding();
+                    $lpOrder->sender_postal_code = $senderAddress->getPostalCode();
+                    $lpOrder->sender_country = $senderAddress->getCountry();
+                    $lpOrder->shipping_template_id = $lpOrderService->getDefaultTemplate($selectedCarrier);
+
+                    $lpOrder->update();
+                }
+
+            } else {
+                $lpOrder = new LPShippingOrder();
+                $numberOfPackages = $cart->getNbOfPackages();
+                $lpOrder->id_cart = $cart->id;
+                $lpOrder->selected_carrier = $selectedCarrier;
+                $lpOrder->weight = $cart->getTotalWeight();
+                $lpOrder->number_of_packages = $numberOfPackages != false ? $numberOfPackages : 1;
+                $lpOrder->cod_available = $lpOrderService->isCodAvailable($cart->id);
+                $lpOrder->cod_amount = $cart->getOrderTotal();
+                $lpOrder->status = LPShippingOrder::ORDER_STATUS_NOT_SAVED;
+                $lpOrder->post_address = $this->validateAndReturnFormedAddress($cart->id);
+                $lpOrder->sender_locality = $senderAddress->getLocality();
+                $lpOrder->sender_street = $senderAddress->getStreet();
+                $lpOrder->sender_building = $senderAddress->getBuilding();
+                $lpOrder->sender_postal_code = $senderAddress->getPostalCode();
+                $lpOrder->sender_country = $senderAddress->getCountry();
+                $lpOrder->shipping_template_id = $lpOrderService->getDefaultTemplate($selectedCarrier);
+
+                $lpOrder->save();
+            }
+
+            $declarationData = [
+                LPShippingDocument::PARENT_KEY => LPShippingOrder::getOrderByCartId($cart->id)[LPShippingDocument::PARENT_KEY],
+                'parcel_type' => 'SELL',
+                'parcel_notes' => 'Sell items',
+                'parcel_description' => '',
+                'cn_parts_amount' => $cart->getOrderTotal(),
+                'cn_parts_country_code' => 'LT',
+                'cn_parts_currency_code' => 'EUR',
+                'cn_parts_weight' => $cart->getTotalWeight(),
+                'cn_parts_quantity' => $cart->getNbProducts($cart->id),
+                'cn_parts_summary' => ''
+            ];
+            $lpOrderService->updateShippingItemWithDeclaration($declarationData);
+
+            return true;
+        }
+
+        return false;
+    }
 
     /**
      * Creates ReceiverType object and sets required information for LP API request variable
@@ -348,6 +426,24 @@ class LPShippingOrderService
         return null;
     }
 
+
+    /**
+     * Try to retrieve order tied with LP carrier from database
+     *
+     * @param string $id
+     *
+     * @return null|array
+     */
+    public function getOrderByCartId($cartId)
+    {
+        $order = LPShippingOrder::getOrderByCartId((int)$cartId);
+
+        if ($order) {
+            return $order;
+        }
+
+        return null;
+    }
 
     /**
      * Check if order is initiated by order status
@@ -631,6 +727,7 @@ class LPShippingOrderService
                 return $total < LpShippingConsts::CN22_THRESHOLD;
             }
         }
+
         return false;
     }
 
@@ -737,7 +834,7 @@ class LPShippingOrderService
         if (
             ($orderData['selected_carrier'] == 'LP_SHIPPING_CARRIER_ABROAD' ||
                 $orderData['selected_carrier'] == 'LP_SHIPPING_CARRIER_HOME_OFFICE_POST') &&
-            (float) $orderData['weight'] < 0.01
+            (float)$orderData['weight'] < 0.01
         ) {
             $orderData['weight'] = 0.01;
         }
@@ -922,7 +1019,7 @@ class LPShippingOrderService
             $lpOrder = $this->collectShippmentData($id);
             $this->saveLPShippingOrder($lpOrder);
             $errors = unserialize(Configuration::get('LP_SHIPPING_LAST_ERROR'));
-            if(isset($errors['message'])) {
+            if (isset($errors['message'])) {
                 $this->errors[] = "Order {$id} failed: " . $errors['message'];
                 Configuration::updateValue('LP_SHIPPING_LAST_ERROR', '');
             }
@@ -1006,7 +1103,7 @@ class LPShippingOrderService
 
     public function updateShippingItemWithDeclaration(array $orderData)
     {
-        $lpOrderId = (int) $orderData[LPShippingDocument::PARENT_KEY];
+        $lpOrderId = (int)$orderData[LPShippingDocument::PARENT_KEY];
         $declarationData = [
             LPShippingDocument::PARENT_KEY => $lpOrderId,
             'parcel_type' => $orderData['parcel_type'],
@@ -1019,12 +1116,12 @@ class LPShippingOrderService
         $document = LPShippingDocument::getByParentId($lpOrderId);
 
         $cnPart = [
-            LPShippingDocumentPart::PARENT_KEY => (int) $document[LPShippingDocument::PRIMARY_KEY],
-            'amount' => (int) $orderData['cn_parts_amount'],
+            LPShippingDocumentPart::PARENT_KEY => (int)$document[LPShippingDocument::PRIMARY_KEY],
+            'amount' => (int)$orderData['cn_parts_amount'],
             'country_code' => $orderData['cn_parts_country_code'],
             'currency_code' => $orderData['cn_parts_currency_code'],
-            'weight' => (float) $orderData['cn_parts_weight'],
-            'quantity' => (int) $orderData['cn_parts_quantity'],
+            'weight' => (float)$orderData['cn_parts_weight'],
+            'quantity' => (int)$orderData['cn_parts_quantity'],
             'summary' => $orderData['cn_parts_summary']
         ];
 
@@ -1088,7 +1185,7 @@ class LPShippingOrderService
                 return $result['message'];
             }
 
-            if(isset($result[0])) {
+            if (isset($result[0])) {
                 $result = $result[0];
             }
             // get barcode and write it in DB
@@ -1098,6 +1195,7 @@ class LPShippingOrderService
                 LPShippingOrder::updateOrder($order);
             }
         }
+
         return null;
     }
 
@@ -1403,11 +1501,13 @@ class LPShippingOrderService
         if ($carrierInfo == LpShippingCourierConfigNames::LP_SHIPPING_CARRIER_HOME_OFFICE_POST) {
             $templateKey = Configuration::get('LP_SHIPPING_ORDER_POST_TYPE');
             $template = LPShippingItemTemplate::getShippingTemplateIdByTypeAndSize($templateKey);
+
             return $template;
         }
         if ($carrierInfo == LpShippingCourierConfigNames::LP_SHIPPING_CARRIER_ABROAD) {
             $templateKey = Configuration::get('LP_SHIPPING_ORDER_POST_TYPE_FOREIGN');
             $template = LPShippingItemTemplate::getShippingTemplateIdByTypeAndSize($templateKey);
+
             return $template;
         }
         if ($carrierInfo == LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_POST) {
@@ -1422,16 +1522,20 @@ class LPShippingOrderService
             if ($type == 'CHCA') {
                 $size = Configuration::get('LP_SHIPPING_EXPRESS_SERVICE_PACKAGE_SIZE');
                 $template = LPShippingItemTemplate::getShippingTemplateIdByTypeAndSize($type, $size);
+
                 return $template;
             }
+
             return Configuration::get('LP_SHIPPING_EXPRESS_FOREIGN_COUNTRIES');
         }
 
         if ($carrierInfo == LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_TERMINAL) {
             $type = Configuration::get('LP_SHIPPING_ORDER_TERMINAL_TYPE');
             $size = Configuration::get('LP_SHIPPING_EXPRESS_SERVICE_PACKAGE_SIZE');
+
             return LPShippingItemTemplate::getShippingTemplateIdByTypeAndSize($type, $size);
         }
+
         return null;
     }
 
@@ -1466,6 +1570,7 @@ class LPShippingOrderService
         }
         if (!$files) {
             $this->addError('No documents were created');
+
             return;
         }
         $fileName = 'documents_' . date('Y-m-d') . '.pdf';
@@ -1632,7 +1737,7 @@ class LPShippingOrderService
     {
         $files = $this->getShippingFiles($orderId, $stickerSize);
 
-        if(!$files) {
+        if (!$files) {
             return false;
         }
         $fileName = 'documents_' . $orderId . '.pdf';
@@ -1666,14 +1771,14 @@ class LPShippingOrderService
 
         $order = LPShippingOrder::getOrderById($orderId);
 
-        if($this->canPrintManifest($order)) {
+        if ($this->canPrintManifest($order)) {
             $manifest = LPShippingRequest::printManifest($order['id_cart_internal_order']);
             if (isset($manifest['document'])) {
                 $files[] = base64_decode($manifest['document']);
             }
         }
 
-        if($this->canPrintDeclaration($order)) {
+        if ($this->canPrintDeclaration($order)) {
             $declaration = LPShippingRequest::printDeclaration($order['id_lp_internal_order']);
             if (isset($declaration[0]['declaration'])) {
                 $files[] = base64_decode($declaration[0]['declaration']);
@@ -1839,7 +1944,7 @@ class LPShippingOrderService
                 $errors[] = $valueError['field'] . ': ' . $message;
             }
 
-            if(isset($messages[0]) && is_array($messages[0])) {
+            if (isset($messages[0]) && is_array($messages[0])) {
                 foreach ($messages as $message) {
                     if (isset($message['messages'])) {
                         $errorMessage = implode(',', $message['messages']);
@@ -1862,6 +1967,7 @@ class LPShippingOrderService
         }
 
         Configuration::updateValue('LP_SHIPPING_LAST_ERROR', '');
+
         return true;
     }
 
@@ -1884,5 +1990,51 @@ class LPShippingOrderService
             $this->errors = [];
         }
         $this->errors[] = $message;
+    }
+
+    /**
+     * Get selected carrier info by carrier ID
+     *
+     * @param string $carrierId
+     *
+     * @return array
+     */
+    private function getSelectedCarrier($carrierId)
+    {
+        $availableCarriers = $this->moduleInstance->getFilteredCarriers();
+
+        foreach ($availableCarriers as $carrier) {
+            $carrierIdFromConfig = Configuration::get($carrier['configuration_name']);
+
+            if ((int)$carrierIdFromConfig === (int)$carrierId) {
+                return $carrier;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Verify user address if delivery type is to post
+     *
+     * @param string $cartId
+     *
+     * @return string
+     */
+    private function validateAndReturnFormedAddress($cartId)
+    {
+        $lpOrderService = new LPShippingOrderService();
+        $cart = new Cart($cartId);
+        $address = new Address($cart->id_address_delivery);
+
+        $addressData = $lpOrderService->formAddress($address);
+
+        if ($addressData) {
+            $addressString = "{$addressData['street']}, {$addressData['locality']}, {$addressData['postalCode']}";
+        } else {
+            $addressString = 'Address could not be verified successfully';
+        }
+
+        return $addressString;
     }
 }

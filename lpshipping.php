@@ -53,7 +53,7 @@ class LPShipping extends CarrierModule
     {
         $this->name = 'lpshipping';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.0.10';
+        $this->version = '1.0.11';
         $this->author = 'Kirotech';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -111,6 +111,7 @@ class LPShipping extends CarrierModule
             $this->registerHook('actionAdminControllerSetMedia'); // hook to display module block in single order page
             $this->registerHook('actionValidateStepComplete');
             $this->registerHook('actionCarrierProcess');
+            $this->registerHook('actionObjectCartUpdateAfter');
 
         }
 
@@ -132,6 +133,7 @@ class LPShipping extends CarrierModule
         $this->unregisterHook('orderDetailDisplayed');
         $this->unregisterHook('displayAdminOrder');
         $this->unregisterHook('actionCarrierProcess');
+        $this->unregisterHook('actionObjectCartUpdateAfter');
 
         AdminLPShippingConfigurationController::removeConfiguration();
 
@@ -483,6 +485,13 @@ class LPShipping extends CarrierModule
 
         // Check if there is order id already saved in database
         $order = $lpOrderService->getOrder($data['id_order']);
+        if ($order == null) {
+            $order = $lpOrderService->getOrderByCartId($data['id_cart']);
+        }
+        if ($order == null) {
+            return;
+        }
+
         $cart = new Cart($data['id_cart']);
         $address = new Address($cart->id_address_delivery);
         $cartTotal = $cart->getOrderTotal();
@@ -505,9 +514,6 @@ class LPShipping extends CarrierModule
             if (Configuration::get('LP_SHIPPING_ORDER_HOME_TYPE') === 'EBIN') {
                 $showSenderAddress = true;
             }
-        }
-        if ($order == null) {
-            return;
         }
 
         $shippingTemplateId = $order['shipping_template_id'];
@@ -839,6 +845,12 @@ class LPShipping extends CarrierModule
 
             return false;
         }
+    }
+
+    public function hookActionObjectCartUpdateAfter($params)
+    {
+        $orderService = new LPShippingOrderService();
+        $orderService->saveOrder($params['object']);
     }
 
     public function saveOrder(array $orderData)

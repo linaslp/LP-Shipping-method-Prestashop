@@ -251,4 +251,6 @@ function saveLPShippingOrder(e)
 
         return submitOrder($(this), e);
     }
+
+    return true;
 }

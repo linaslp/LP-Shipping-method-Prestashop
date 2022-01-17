@@ -703,6 +703,8 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
      */
     private function postAuthSetup()
     {
+        $this->updateTerminals();
+
         if (!Configuration::get(self::TERMINALS_UPDATE_KEY)) {
             $this->updateTerminals();
         }
@@ -719,6 +721,9 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
     {
         $terminals = LPShippingRequest::getTerminals();
 
+        if (!$terminals['success']) {
+            return;
+        }
         // write terminals
         if (LPShippingTerminal::saveTerminalBatch($terminals)) {
             Configuration::updateValue(self::TERMINALS_UPDATE_KEY, 1);

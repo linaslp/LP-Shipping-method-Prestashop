@@ -703,8 +703,6 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
      */
     private function postAuthSetup()
     {
-        $this->updateTerminals();
-
         if (!Configuration::get(self::TERMINALS_UPDATE_KEY)) {
             $this->updateTerminals();
         }

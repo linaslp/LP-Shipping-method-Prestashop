@@ -47,7 +47,9 @@ class LPShippingCronModuleFrontController extends ModuleFrontController
     private function updateTerminals()
     {
         $newTerminals = LPShippingRequest::getTerminals();
-        
+        if (!$newTerminals['success']) {
+            die('Failed to get terminals from API.');
+        }
         foreach ($newTerminals as $newTerminal) {
             $oldTerminal = LPShippingTerminal::getTerminalByTerminalId($newTerminal['id']);
 
@@ -58,7 +60,7 @@ class LPShippingCronModuleFrontController extends ModuleFrontController
             }
         }
 
-        die('Successfully updated terminal list.');      
+        die('Successfully updated terminal list.');
     }
 
     /**
@@ -77,7 +79,7 @@ class LPShippingCronModuleFrontController extends ModuleFrontController
                 $trackingInfo = LPShippingRequest::getShippingItemsTrackingInformation([$order['id_lp_internal_order']]);
 
                 if ($trackingInfo && !empty($trackingInfo) && is_array($trackingInfo)) {
-                    if (key_exists('barcode', $trackingInfo[0])) {                
+                    if (key_exists('barcode', $trackingInfo[0])) {
                         $order['label_number'] = $trackingInfo[0]['barcode'];
                     }
                     $order['parcel_status'] = $trackingInfo[0]['state'];
@@ -91,7 +93,7 @@ class LPShippingCronModuleFrontController extends ModuleFrontController
             }
         }
 
-        die('Finished orders tracking information automatic update process.'); 
+        die('Finished orders tracking information automatic update process.');
     }
 
 }

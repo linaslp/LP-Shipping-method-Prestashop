@@ -47,7 +47,7 @@ class LPShippingCronModuleFrontController extends ModuleFrontController
     private function updateTerminals()
     {
         $newTerminals = LPShippingRequest::getTerminals();
-        if (!$newTerminals['success']) {
+        if (isset($newTerminals['success']) && !$newTerminals['success']) {
             die('Failed to get terminals from API.');
         }
         foreach ($newTerminals as $newTerminal) {

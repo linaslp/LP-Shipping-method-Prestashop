@@ -122,6 +122,14 @@ class LPShippingDbSetup
             INDEX (`id_lpshipping_order_document`)
         ) ENGINE=" . _MYSQL_ENGINE_ . "DEFAULT CHARSET=utf8;";
 
+        $sql[] = "CREATE TABLE IF NOT EXISTS "._DB_PREFIX_ ."lpshipping_cart_terminal (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `id_cart` INT NOT NULL,
+            `id_lpexpress_terminal` INT NOT NULL,
+            PRIMARY KEY (`id`),
+            INDEX(`id_cart`,`id_lpexpress_terminal`)
+        ) ENGINE="._MYSQL_ENGINE_."DEFAULT CHARSET=utf8;";
+        
         return $sql;
     }
 
@@ -176,6 +184,7 @@ class LPShippingDbSetup
         $sql[] = 'DROP TABLE IF EXISTS ' . _DB_PREFIX_ . 'lpshipping_order';
         $sql[] = 'DROP TABLE IF EXISTS ' . _DB_PREFIX_ . 'lpshipping_order_document';
         $sql[] = 'DROP TABLE IF EXISTS ' . _DB_PREFIX_ . 'lpshipping_document_part';
+        $sql[] = 'DROP TABLE IF EXISTS ' . _DB_PREFIX_ . 'lpshipping_cart_terminal';
 
         return $sql;
     }

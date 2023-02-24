@@ -71,7 +71,7 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
             'name' => 'LP_ABROAD',
             'allow_size_selection' => true,
             'template_ids' => [
-                42, 43, 44, 66, 67
+                42, 43, 44, 66, 67, 70, 73, 74, 78
             ]
         ],
         'LP_DEFAULT' => [
@@ -328,15 +328,6 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
                         'type' => 'radio_hint',
                         'title' => $this->module->l('Post office order type to foreign countries', self::CLASS_NAME) . ' *',
                         'choices' => [
-                            'SMALL_CORESPONDENCE' => [
-                                'title' => $this->module->l("(S) Small items of correspondence, from the post office, to the recipient's address", self::CLASS_NAME),
-                            ],
-                            'BIG_CORESPONDENCE' => [
-                                'title' => $this->module->l("(M) Large consignment of correspondence, from the post office, to the recipient's address.", self::CLASS_NAME),
-                            ],
-                            'PACKAGE' => [
-                                'title' => $this->module->l("(L) Parcel, from the post office, to the recipient's address", self::CLASS_NAME),
-                            ],
                             'SMALL_CORESPONDENCE_TRACKED' => [
                                 'title' => $this->module->l("(S) Tracked. Small items of correspondence, from the post office, to the recipient's address", self::CLASS_NAME),
                             ],
@@ -703,7 +694,7 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
      */
     private function postAuthSetup()
     {
-        if (Configuration::get(self::TERMINALS_UPDATE_KEY)) {
+        if (!Configuration::get(self::TERMINALS_UPDATE_KEY)) {
             $this->updateTerminals();
         }
 
@@ -719,7 +710,7 @@ class AdminLPShippingConfigurationController extends ModuleAdminController
     {
         $terminals = LPShippingRequest::getTerminals();
 
-        if (isset($terminals['success']) && !$terminals['success']) {
+        if (array_key_exists('success', $terminals) && !$terminals['success']) {
             return;
         }
         // write terminals

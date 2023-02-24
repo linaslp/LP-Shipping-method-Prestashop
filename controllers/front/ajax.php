@@ -1,6 +1,7 @@
 <?php
 
 // require_once(dirname(__FILE__) . './../../classes/LPShippingOrder.php');
+require_once(dirname(__FILE__).'./../../classes/LPShippingCartTerminal.php');
 
 class LPShippingAjaxModuleFrontController extends ModuleFrontController
 {
@@ -14,6 +15,7 @@ class LPShippingAjaxModuleFrontController extends ModuleFrontController
         parent::init();
 
         if (Tools::getValue('LPShippingToken') != Tools::getToken(false)) {
+            http_response_code(403);
             die(json_encode(['success' => 0, 'message' => $this->module->l('Invalid ajax token', self::CLASS_NAME)]));
         }
 
@@ -27,14 +29,16 @@ class LPShippingAjaxModuleFrontController extends ModuleFrontController
     {
         $action = Tools::getValue('action');
         if (!$action) {
+            http_response_code(400);
             die(json_encode(['success' => 0, 'message' => $this->module->l('Invalid action.', self::CLASS_NAME)]));
         }
 
         switch ($action) {
             case 'submitOrder':
-                $this->saveOrder(Tools::getAllValues());
+                $this->saveCartTerminal(Tools::getAllValues());
                 break;
             default:
+                http_response_code(400);
                 die(json_encode(['success' => 0, 'message' => $this->module->l('Invalid action.', self::CLASS_NAME)]));
         }
     }
@@ -44,80 +48,32 @@ class LPShippingAjaxModuleFrontController extends ModuleFrontController
      * 
      * @param array orderData from views/js/front.js
      */
-    public function saveOrder(array $orderData)
-    {
-        $lpOrderService = new LPShippingOrderService();
-        $carrierInfo = $this->getSelectedCarrier($orderData['selectedCarrierId']);
-        $selectedCarrier = $carrierInfo['configuration_name'];
-        $senderAddress = $lpOrderService->formSenderAddressType();
-        if ($carrierInfo) {
-            /* Create LPShippingOrder object */
-            $lpOrderArray = LPShippingOrder::getOrderByCartId($orderData['cartId']);
-            $cart = new Cart($orderData['cartId']);
+    public function saveCartTerminal(array $orderData)
+    {        
+        try {            
+            $terminal = new LPShippingCartTerminal($orderData['cartId']);
+            $terminalId = $orderData['terminalId'] ? $orderData['terminalId'] : null;
 
-            if (is_array($lpOrderArray) && !empty($lpOrderArray)) {
-                $lpOrder = new LPShippingOrder($lpOrderArray['id_lpshipping_order']);
-
-                if (Validate::isLoadedObject($lpOrder)) {
-                    $lpOrder->selected_carrier = $carrierInfo['configuration_name'];
-                    $lpOrder->weight = $cart->getTotalWeight();
-                    $lpOrder->cod_available = $lpOrderService->isCodAvailable($orderData['cartId']);
-                    $lpOrder->cod_amount = $cart->getOrderTotal();
-                    $lpOrder->post_address = $this->validateAndReturnFormedAddress($orderData['cartId']);
-                    $lpOrder->sender_locality = $senderAddress->getLocality();
-                    $lpOrder->sender_street = $senderAddress->getStreet();
-                    $lpOrder->sender_building = $senderAddress->getBuilding();
-                    $lpOrder->sender_postal_code = $senderAddress->getPostalCode();
-                    $lpOrder->sender_country = $senderAddress->getCountry();
-                    $lpOrder->shipping_template_id = $lpOrderService->getDefaultTemplate($selectedCarrier);
-                    if ($orderData['terminalId'] !== null) {
-                        $lpOrder->id_lpexpress_terminal = $orderData['terminalId'];
-                    }
-    
-                    $lpOrder->update();
-                }
-                
-            } else { 
-                $lpOrder = new LPShippingOrder();
-                $numberOfPackages = $cart->getNbOfPackages();
-                $lpOrder->id_cart = $orderData['cartId'];
-                $lpOrder->selected_carrier = $selectedCarrier;
-                $lpOrder->weight = $cart->getTotalWeight();
-                $lpOrder->number_of_packages = $numberOfPackages != false ? $numberOfPackages : 1;
-                $lpOrder->cod_available = $lpOrderService->isCodAvailable($orderData['cartId']);
-                $lpOrder->cod_amount = $cart->getOrderTotal();
-                $lpOrder->status = LPShippingOrder::ORDER_STATUS_NOT_SAVED;
-                $lpOrder->post_address = $this->validateAndReturnFormedAddress($orderData['cartId']);
-                $lpOrder->sender_locality = $senderAddress->getLocality();
-                $lpOrder->sender_street = $senderAddress->getStreet();
-                $lpOrder->sender_building = $senderAddress->getBuilding();
-                $lpOrder->sender_postal_code = $senderAddress->getPostalCode();
-                $lpOrder->sender_country = $senderAddress->getCountry();
-                $lpOrder->shipping_template_id = $lpOrderService->getDefaultTemplate($selectedCarrier);
-                if ($orderData['terminalId'] !== null) {
-                    $lpOrder->id_lpexpress_terminal = $orderData['terminalId'];
-                }
-                $lpOrder->save();
+            if($terminal->id_cart){
+                LPShippingCartTerminal::updateTerminalByCartId($orderData['cartId'], $terminalId);
+            } else if ($terminalId) {
+                $terminal->id_cart = $orderData['cartId'];
+                $terminal->id_lpexpress_terminal = $terminalId;
+                $terminal->save();
             }
+        } catch(Exception $e) {
+            http_response_code(400);
 
-            $declarationData = [
-                LPShippingDocument::PARENT_KEY => LPShippingOrder::getOrderByCartId($orderData['cartId'])[LPShippingDocument::PARENT_KEY],
-                'parcel_type' => 'SELL',
-                'parcel_notes' => 'Sell items',
-                'parcel_description' => '',
-                'cn_parts_amount' => $cart->getOrderTotal(),
-                'cn_parts_country_code' => 'LT',
-                'cn_parts_currency_code' =>'EUR',
-                'cn_parts_weight' => $cart->getTotalWeight(),
-                'cn_parts_quantity' => $cart->getNbProducts($orderData['cartId']),
-                'cn_parts_summary' => ''
-            ];
-            $lpOrderService->updateShippingItemWithDeclaration($declarationData);
-
-            die(json_encode(['success' => 1, 'data' => $lpOrder]));
+            die(
+                json_encode(
+                    [
+                        'success' => 0, 
+                        'message' => Context::getContext()->getTranslator()->trans('Error while saving selected carrier information')
+                    ]
+            ));
         }
 
-        die(json_encode(['success' => 0, 'message' => Context::getContext()->getTranslator()->trans('Error while saving selected carrier information')]));
+        die(json_encode(['success' => 1]));
     }
 
     /**

@@ -10,7 +10,8 @@
         }
     },
     "require": {
-        "iio/libmergepdf": "^3.0"
+        "iio/libmergepdf": "^3.0",
+        "viison/address-splitter": "^0.3.4"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",

@@ -1,12 +1,14 @@
 <?php
 
+use Doctrine\ORM\Query\Expr\Func;
+
 require_once(dirname(__FILE__) . './../api/types/AddressType.php');
 require_once(dirname(__FILE__) . './../api/types/ReceiverType.php');
 require_once(dirname(__FILE__) . './../api/types/SenderType.php');
 require_once(dirname(__FILE__) . './../classes/LPShippingDocument.php');
 require_once(dirname(__FILE__) . './../classes/LPShippingDocumentPart.php');
 require_once(dirname(__FILE__) . './../classes/LPShippingConsts.php');
-
+use \VIISON\AddressSplitter\AddressSplitter;
 /**
  * LPShippingOrderService is for helper methods with order service
  */
@@ -18,7 +20,7 @@ class LPShippingOrderService
     const LT_COUNTRY_ID = 118;
 
     const ERROR_ZIP_CREATE = 'Failed to create ZIP file';
-
+    private const LP_ID_KEY_NAME = 'id_lp_internal_order';
 
     /**
      * @var string $baseDownloadPath path to downloaded files from LP API; with ending forward slash
@@ -86,7 +88,6 @@ class LPShippingOrderService
         return $address;
     }
 
-
     /**
      * Save order from user side to BE
      *
@@ -101,7 +102,6 @@ class LPShippingOrderService
         if ($carrierInfo) {
             /* Create LPShippingOrder object */
             $lpOrderArray = LPShippingOrder::getOrderByCartId($cart->id);
-            $cart = new Cart($cart->id);
 
             if (is_array($lpOrderArray) && !empty($lpOrderArray)) {
                 $lpOrder = new LPShippingOrder($lpOrderArray['id_lpshipping_order']);
@@ -153,7 +153,7 @@ class LPShippingOrderService
                 'cn_parts_currency_code' => 'EUR',
                 'cn_parts_weight' => $cart->getTotalWeight(),
                 'cn_parts_quantity' => $cart->getNbProducts($cart->id),
-                'cn_parts_summary' => ''
+                'cn_parts_summary' => $cart->getProducts()[0]['legend']
             ];
             $lpOrderService->updateShippingItemWithDeclaration($declarationData);
 
@@ -175,13 +175,13 @@ class LPShippingOrderService
         $PSOrder = new Order($order['id_order']);
         $PSAddress = new Address($PSOrder->id_address_delivery);
         $customer = new Customer($PSOrder->id_customer);
-
+        
         if (!empty(trim($PSAddress->phone_mobile))) {
             $phone = $PSAddress->phone_mobile;
         } else {
             $phone = $PSAddress->phone;
         }
-
+       
         $receiver = new ReceiverType();
         $receiver->setAddress($this->formReceiverAddressType($order));
         $receiver->setCompanyName($PSAddress->company);
@@ -189,7 +189,7 @@ class LPShippingOrderService
         $receiver->setPhone($this->formatPhoneNumber($phone));
         $receiver->setEmail($customer->email);
         $receiver->setPostalCode($PSAddress->postcode);
-
+        
         if ($order['selected_carrier'] == 'LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') {
             $terminal = LPShippingTerminal::getTerminalById($order['id_lpexpress_terminal']);
             $receiver->setTerminalId($terminal['terminal_id']);
@@ -364,7 +364,7 @@ class LPShippingOrderService
      * @return array
      */
     public function addTemplatesToCarriers(array $carriers)
-    {
+    {        
         $data = [];
         $terminalType = Configuration::get('LP_SHIPPING_ORDER_TERMINAL_TYPE');
         $addressType = Configuration::get('LP_SHIPPING_ORDER_HOME_TYPE');
@@ -382,16 +382,28 @@ class LPShippingOrderService
                 }
 
                 if ($template['name'] == 'LP_ABROAD') {
-                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplatesByType('SMALL_CORESPONDENCE_TRACKED')[0];
-                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplatesByType('MEDIUM_CORESPONDENCE_TRACKED')[0];
-
+                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplateByTypeAndSize(
+                        LpShippingConsts::SMALL_CORRESPONDENCE,
+                        LpShippingConsts::SMALL_CORRESPONDENCE_SIZE_NAME
+                    );
+                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplateByTypeAndSize(
+                        LpShippingConsts::MEDIUM_CORRESPONDENCE,
+                        LpShippingConsts::MEDIUM_CORRESPONDENCE_SIZE_NAME
+                    );
+                    
                     break;
                 }
 
                 if ($template['name'] == 'LP_DEFAULT') {
-                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplatesByType('SMALL_CORESPONDENCE')[0];
-                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplatesByType('BIG_CORESPONDENCE')[0];
-                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplatesByType('PACKAGE')[0];
+                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplateByTypeAndSize(
+                        LpShippingConsts::SMALL_CORRESPONDENCE
+                    );
+                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplateByTypeAndSize(
+                        LpShippingConsts::MEDIUM_CORRESPONDENCE
+                    );
+                    $temp['templates'][] = LPShippingItemTemplate::getShippingTemplateByTypeAndSize(
+                        LpShippingConsts::PARCEL
+                    );
 
                     break;
                 }
@@ -787,9 +799,10 @@ class LPShippingOrderService
     public function getShipmentItem($id)
     {
         $order = LPShippingOrder::getOrderById($id);
+
         if ($this->lpItemIdExists($order)) {
             $result = LPShippingRequest::getShippingItem($order['id_lp_internal_order']);
-
+        
             if ($result) {
                 return $result;
             }
@@ -838,7 +851,7 @@ class LPShippingOrderService
         ) {
             $orderData['weight'] = 0.01;
         }
-
+        
         $createdItem = LPShippingRequest::updateShippingItem($orderData);
         if (!$this->isRequestSuccessful($createdItem)) {
             return $createdItem;
@@ -942,27 +955,21 @@ class LPShippingOrderService
      *
      * @return array|true|string
      */
-    public function formShipmentsBulk(array $ids)
+    public function formShipmentsBulk(array $orders)
     {
-        $missingInternalIds = [];
-        $orders = []; // var to not pull twice from DB
-        $ordersInternalIds = [];
-        foreach ($ids as $id) {
-            $order = LPShippingOrder::getOrderById($id);
-            $orders[] = $order;
-            $ordersInternalIds[] = $order['id_lp_internal_order'];
-            if (!$this->lpItemIdExists($order)) {
-                $missingInternalIds[] = $id;
-            }
-        }
+        $autoCourierCall = Configuration::get('LP_SHIPPING_CALL_COURIER_ACTIVE');
 
+        $missingInternalIds = [];
+        $ordersInternalIds = array_column($orders, 'id_lp_internal_order');
+        
         if (count($missingInternalIds) > 0) {
             return $missingInternalIds;
         }
 
         $this->updateShippingItems($orders);
         $identId = LPShippingRequest::initiateShippingItem($ordersInternalIds);
-        if (!$this->isRequestSuccessful($identId)) {
+       
+        if (!$identId || !$this->isRequestSuccessful($identId)) {
             return null;
         }
 
@@ -971,22 +978,33 @@ class LPShippingOrderService
             return $identId[0];
         }
 
-        foreach ($orders as $order) {
-            $order['id_cart_internal_order'] = $identId[0];
+        $initiatedItemsTracking = LPShippingRequest::getShippingItemsTrackingInformation($ordersInternalIds); 
+        $trackingGroupedByLpId = $this->groupBy($initiatedItemsTracking, 'id');
+        unset($initiatedItemsTracking);
 
-            $initiatedItemData = LPShippingRequest::getShippingItem($order['id_lp_internal_order']);
+        $chunkSize = 0;
+        $currentChunk = 0;
+        foreach ($orders as $order) {
+            if (!(LpShippingConsts::LP_SHIPPING_BULK_INIT_CHUNK_SIZE - $chunkSize)) {
+                $currentChunk += 1;
+                $chunkSize = 0;
+            }
+            $chunkSize += 1;
+
+            $order['id_cart_internal_order'] = $identId[$currentChunk];
+
+            $initiatedItemData = $trackingGroupedByLpId[$order[self::LP_ID_KEY_NAME]];
             if ($initiatedItemData) {
                 $psOrder = new Order($order['id_order']);
                 $orderCarrier = new OrderCarrier($psOrder->getIdOrderCarrier());
-                $orderCarrier->tracking_number = $initiatedItemData['barcode'];
+                $orderCarrier->tracking_number = $initiatedItemData['barcode'] ?? null;
                 $orderCarrier->update();
-                $order['label_number'] = $initiatedItemData['barcode'];
-                $order['parcel_status'] = $initiatedItemData['status'];
+                $order['label_number'] = $initiatedItemData['barcode'] ?? null;
+                $order['parcel_status'] = $initiatedItemData['state'];
             }
-
             // if order doesn't belong to courier process
             if ($this->isCourier($order)) {
-                if (!$this->isCallCourierAvailable($order)) {
+                if ($autoCourierCall) {
                     $order['status'] = LPShippingOrder::ORDER_STATUS_COURIER_CALLED;
                 } else {
                     $order['status'] = LPShippingOrder::ORDER_STATUS_COURIER_NOT_CALLED;
@@ -1006,26 +1024,51 @@ class LPShippingOrderService
         return true;
     }
 
+    public function groupBy(array $array, string $key): array
+    {
+        $newArray = [];
+        
+        foreach($array as $item) {
+            $newArray[$item[$key]] = $item;
+        }
+
+        return $newArray;
+    }
+
     /**
      * Initiate shipping process in LP API, it differs from one item initialization because there can be many items initialized at once
      *
      * @param array $orderIds
      *
-     * @return array|true|string
+     * @return array
      */
-    public function saveShipmentsBulk(array $ids)
+    public function saveShipmentsBulk(array $orders)
     {
-        foreach ($ids as $id) {
-            $lpOrder = $this->collectShippmentData($id);
-            $this->saveLPShippingOrder($lpOrder);
-            $errors = unserialize(Configuration::get('LP_SHIPPING_LAST_ERROR'));
-            if (isset($errors['message'])) {
-                $this->errors[] = "Order {$id} failed: " . $errors['message'];
-                Configuration::updateValue('LP_SHIPPING_LAST_ERROR', '');
+        $messages = [];
+
+        foreach ($orders as $lpOrder) {
+            $response = $this->saveLPShippingOrder($lpOrder);
+            
+            if (isset($response['message'])) {
+                $message = json_decode($response['message']);
+                $errors = $message->valueValidationErrors[0] ?? $message[0];
+                
+                if (is_string($errors)) {
+                    $messages[] = sprintf('Order %s failed: %s', $lpOrder['id_order'], $errors);
+
+                    continue;
+                }
+
+                $messages[] = sprintf(
+                    'Order %s failed: %s, %s', 
+                    $lpOrder['id_order'], 
+                    $errors->field, 
+                    $errors->message
+                );
             }
         }
-
-        return $this->errors;
+   
+        return $messages;
     }
 
     public function collectShippmentData($id)
@@ -1090,7 +1133,7 @@ class LPShippingOrderService
                     }
                 }
             }
-
+            
             if (count($servicesToAddIds) > 0) {
                 $orderData['additionalServices'] = $servicesToAddIds;
 
@@ -1443,7 +1486,7 @@ class LPShippingOrderService
      *
      * @return readfile>download>exit|null
      */
-    public function printManifestBulk(array $ids)
+    public function printManifestBulk(array $lpCartId)
     {
         $zip = new ZipArchive();
         $zipName = 'manifests_' . date('Ymdhis') . '.zip';
@@ -1453,8 +1496,8 @@ class LPShippingOrderService
             return null;
         }
 
-        foreach ($ids as $id) {
-            $fileName = $this->downloadManifest($id);
+        foreach ($lpCartId as $id) {
+            $fileName = $this->downloadManifestByLpCartId($id);
             if (!empty(trim($fileName))) {
                 $zip->addFile($this->baseDownloadPath . $fileName, 'manifests_/' . $fileName);
             }
@@ -1500,14 +1543,20 @@ class LPShippingOrderService
     {
         if ($carrierInfo == LpShippingCourierConfigNames::LP_SHIPPING_CARRIER_HOME_OFFICE_POST) {
             $templateKey = Configuration::get('LP_SHIPPING_ORDER_POST_TYPE');
-            $template = LPShippingItemTemplate::getShippingTemplateIdByTypeAndSize($templateKey);
+            $template = LPShippingItemTemplate::getShippingTemplateIdByTypeAndSize(
+                $this->getLpTemplateType($templateKey),
+                null
+            );
 
             return $template;
         }
         if ($carrierInfo == LpShippingCourierConfigNames::LP_SHIPPING_CARRIER_ABROAD) {
             $templateKey = Configuration::get('LP_SHIPPING_ORDER_POST_TYPE_FOREIGN');
-            $template = LPShippingItemTemplate::getShippingTemplateIdByTypeAndSize($templateKey);
-
+            $template = LPShippingItemTemplate::getShippingTemplateIdByTypeAndSize(
+                $this->getLpTemplateType($templateKey),
+                $this->getLpTemplateSizeByType($templateKey)
+            );
+        
             return $template;
         }
         if ($carrierInfo == LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_POST) {
@@ -1537,6 +1586,34 @@ class LPShippingOrderService
         }
 
         return null;
+    }
+
+    public function getLpTemplateType(string $templateType): ?string
+    {
+        switch($templateType) {
+            case LpShippingConsts::SMALL_CORRESPONDENCE_OLD:
+            case LpShippingConsts::SMALL_CORESPONDENCE_TRACKED_OLD:
+                return LpShippingConsts::SMALL_CORRESPONDENCE;
+            case LpShippingConsts::MEDIUM_CORRESPONDENCE_OLD:
+            case LpShippingConsts::MEDIUM_CORRESPONDENCE_TRACKED_OLD:
+                return LpShippingConsts::MEDIUM_CORRESPONDENCE;
+            case LpShippingConsts::PARCEL_OLD:
+                return LpShippingConsts::PARCEL;
+            default:
+                return null;
+        }
+    }
+
+    public function getLpTemplateSizeByType(string $templateType): ?string
+    {
+        switch($templateType) {
+            case LpShippingConsts::SMALL_CORESPONDENCE_TRACKED_OLD:
+                return LpShippingConsts::SMALL_CORRESPONDENCE_SIZE_NAME;
+            case LpShippingConsts::MEDIUM_CORRESPONDENCE_TRACKED_OLD:
+                return LpShippingConsts::MEDIUM_CORRESPONDENCE_SIZE_NAME;
+            default:
+                return null;
+        }
     }
 
     /**
@@ -1799,13 +1876,13 @@ class LPShippingOrderService
     {
         $orderData = LPShippingOrder::getOrderById($orderId);
 
-        $declaration = LPShippingRequest::printDeclaration($orderData['id_lp_internal_order']);
+        $declaration = LPShippingRequest::printDeclaration($orderData['id_cart_internal_order']);
         if (!$this->isRequestSuccessful($declaration)) {
             return null;
         }
         $fileName = 'declaration_' . $orderId . '.pdf';
-
-        $this->saveFile($this->baseDownloadPath, $fileName, base64_decode($declaration[0]['declaration']));
+        
+        $this->saveFile($this->baseDownloadPath, $fileName, base64_decode($declaration['document']));
 
         if (file_exists($this->baseDownloadPath . $fileName)) {
             return $fileName;
@@ -1837,6 +1914,26 @@ class LPShippingOrderService
                 if (file_exists($this->baseDownloadPath . $fileName)) {
                     return $fileName;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    public function downloadManifestByLpCartId(string $lpCartId): ?string
+    {
+        $manifest = LPShippingRequest::printManifest($lpCartId);
+        if (!$this->isRequestSuccessful($manifest)) {
+            return null;
+        }
+
+        $fileName = 'manifest_' . $lpCartId . '.pdf';
+
+        if ($manifest) {
+            $this->saveFile($this->baseDownloadPath, $fileName, base64_decode($manifest['document']));
+
+            if (file_exists($this->baseDownloadPath . $fileName)) {
+                return $fileName;
             }
         }
 
@@ -2036,5 +2133,71 @@ class LPShippingOrderService
         }
 
         return $addressString;
+    }
+
+    public function canPrintLabels(array $orders, array $statesKeyedByLpId)
+    {
+        foreach($orders as $order) {
+            $status = $statesKeyedByLpId[$order['id_lp_internal_order']];
+
+            if ( 
+                $status === LpShippingConsts::STATUS_PENDING ||
+                $status === LpShippingConsts::STATUS_NOT_FOUND
+            ) {
+                throw new Exception(
+                    sprintf('Label can not be printed for order %s it has status of %s', $order['id_order'], $status)
+                );
+            }
+        }
+    }
+
+    public function printLabelsBulk(array $internalIds, array $ordersKeyedByLpId)
+    {
+        $stickerSize = Configuration::get('LP_SHIPPING_STICKER_SIZE', '');
+        $chunkedIds = array_chunk($internalIds, LpShippingConsts::LP_SHIPPING_LABEL_PRINT_CHUNK_SIZE);
+        
+        $labels = [];
+        foreach($chunkedIds as $chunk) {
+            $labels = array_merge($labels, $this->downloadLabelsBulk($chunk, $stickerSize)); 
+        }
+        
+        $zipFile = $this->zipLabels($labels, $ordersKeyedByLpId);
+        $this->downloadFile($this->baseDownloadPath, $zipFile, 'application/zip');
+    }
+
+    private function downloadLabelsBulk(array $internalIds, string $stickerSize)
+    {
+        $labels = LPShippingRequest::printLabels($internalIds, $stickerSize);
+
+        if (is_null($labels) || !$this->isRequestSuccessful($labels)) {
+            $message = isset($labels['message']) ? $labels['message'] : "Something went wrong with LP request";
+            throw new Exception($message);
+        }
+
+        return $labels;
+    }
+
+    private function zipLabels(array $labels, array $ordersKeyedByLpId)
+    {
+        $zipFile = new ZipArchive();
+        $zipName = 'labels_' . date('Ymdhis') . '.zip';
+        if ($zipFile->open($this->baseDownloadPath . $zipName, ZipArchive::CREATE) !== TRUE) {
+            $this->addError(self::ERROR_ZIP_CREATE);
+
+            return null;
+        }
+
+        foreach ($labels as $label) {
+            if ($label['contentType'] !== 'application/pdf') {
+                return [];
+            }
+
+            $fileName = 'label_' . $ordersKeyedByLpId[$label['itemId']] . '.pdf';
+            $this->saveFile($this->baseDownloadPath, $fileName, base64_decode($label['label']));
+            $zipFile->addFile($this->baseDownloadPath . $fileName, 'labels_/' . $fileName);
+        }
+        $zipFile->close();
+
+        return $zipName;
     }
 }

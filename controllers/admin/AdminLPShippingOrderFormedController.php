@@ -396,20 +396,34 @@ class AdminLPShippingOrderFormedController extends ModuleAdminController
      */
     public function printLabelBulk(array $rowIds)
     {
-        $ids = [];
-        foreach ($rowIds as $rowId) {
-            $row = LPShippingOrder::getOrderByRowId($rowId);
-            $ids[] = $row['id_order'];
+        try {
+            $orders = LPShippingOrder::getOrdersById($rowIds);
+            $internalIds = array_column($orders, 'id_lp_internal_order');
+            $trackingInfo = LPShippingRequest::getShippingItemsTrackingInformation($internalIds);
+                
+            $trackingStateById = $this->groupBy($trackingInfo, 'id', 'state');
+            unset($trackingInfo);
 
-            if (!$this->lpOrderService->canPrintLabel($row)) {
-                $this->addMessage(false, 'Label can not be printed yet for order ' . $row['id_order']);
-            }
+            $this->lpOrderService->canPrintLabels($orders, $trackingStateById);
+            
+            $ordersKeyedByLpId = $this->groupBy($orders, 'id_lp_internal_order', 'id_order');
+            unset($orders);
+
+            $this->lpOrderService->printLabelsBulk($internalIds, $ordersKeyedByLpId);
+
+        } catch (Exception $e) {
+            $this->addMessage(false, $e->getMessage());
+        }
+    }
+
+    private function groupBy(array $array, string $keyBy, string $valueKeyName): array 
+    {
+        $newArray = [];
+        foreach($array as $item) {
+            $newArray[$item[$keyBy]] = $item[$valueKeyName];
         }
 
-        if (empty($this->errors)) {
-            $this->lpOrderService->printLabels($ids);
-            $this->checkErrors();
-        }
+        return $newArray;
     }
 
     /**
@@ -442,34 +456,42 @@ class AdminLPShippingOrderFormedController extends ModuleAdminController
      */
     public function printManifestBulk(array $rowIds)
     {
-        $ids = [];
-        foreach ($rowIds as $rowId) {
-            $row = LPShippingOrder::getOrderByRowId($rowId);
-            $ids[] = $row['id_order'];
+        $orders = LPShippingOrder::getOrdersById($rowIds);
 
-            if (!$this->lpOrderService->canPrintManifest($row)) {
-                $this->addMessage(false, 'Manifest can not be printed for order ' . $row['id_order']);
+        if (!$orders) {
+            $this->addMessage(false, 'Unable to find LP orders');
+            return;
+        }
+
+        foreach ($orders as $order) {
+            if (!$this->lpOrderService->canPrintManifest($order)) {
+                $this->addMessage(false, 'Manifest can not be printed for order ' . $order['id_order']);
             }
         }
 
+        $lpCartIds = array_unique(array_column($orders, 'id_cart_internal_order'));
+
         if (empty($this->errors)) {
-            $this->lpOrderService->printManifestBulk($ids);
+            $this->lpOrderService->printManifestBulk($lpCartIds);
             $this->checkErrors();
         }
     }
-    /**
+    /**>
      * Print a bunch of declarations
      *
      * @param array $rowIds
      */
     public function printAllBulk(array $rowIds)
     {
-        $ids = [];
-        foreach ($rowIds as $rowId) {
-            $row = LPShippingOrder::getOrderByRowId($rowId);
-            $ids[] = $row['id_order'];
+        $orders = LPShippingOrder::getOrdersById($rowIds);
+
+        if (!$orders) {
+            $this->addMessage(false, 'Cannot find any LP shippments');
+            return;
         }
 
+        $ids = array_column($orders, 'id_order');
+        
         if (empty($this->errors)) {
             $this->lpOrderService->printAllBulk($ids);
             $this->checkErrors();

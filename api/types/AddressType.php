@@ -174,7 +174,7 @@ class AddressType
     public function getPostOfficeAddress()
     {
         if (empty(trim($this->postOfficeId))) {
-            return [];
+            return new stdClass();
         }
 
         if ($this->postOfficeBoxId) {

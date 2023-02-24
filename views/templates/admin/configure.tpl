@@ -70,11 +70,6 @@
                     $(el).prop('disabled', true);
                 }
             }
-
-            $(shipmentsPriorityOn).prop('checked', false);
-            $(shipmentsPriorityOff).prop('checked', true);
-            $(shipmentsRegisteredOn).prop('checked', false);
-            $(shipmentsRegisteredOff).prop('checked', true);
         }
 
         if ($(lpServicesOptOn).is(':checked')) {
@@ -84,11 +79,6 @@
                     $(el).prop('disabled', false);
                 }
             }
-
-            $(shipmentsPriorityOn).prop('checked', true);
-            $(shipmentsPriorityOff).prop('checked', false);
-            $(shipmentsRegisteredOn).prop('checked', true);
-            $(shipmentsRegisteredOff).prop('checked', false);
         }
     }
 

@@ -65,15 +65,15 @@ class LPShippingDocument extends ObjectModel
     public static function updateEntity(array $row)
     {
         $entityArr = self::getByParentId($row[self::PARENT_KEY]);
-        $entity = new LPShippingDocument($entityArr[self::PRIMARY_KEY]);
 
-        if ($entity->id_lpshipping_order != null) {
-            self::write($entity, $row);
-
-            return $entity->update();
-        } else {
-            self::saveEntity($row);
+        if (!$entityArr) {
+            return self::saveEntity($row);
         }
+
+        $entity = new LPShippingDocument($entityArr[self::PRIMARY_KEY]);
+        self::write($entity, $row);
+
+        return $entity->update();
     }
 
     /**

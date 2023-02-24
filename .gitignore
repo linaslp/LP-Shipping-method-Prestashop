@@ -49,8 +49,9 @@ Thumbs.db
 *.wmv
 
 /api/downloads
-/vendor
 config.xml
 config_lt.xml
 
 .env
+
+/vendor

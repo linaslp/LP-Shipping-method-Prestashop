@@ -301,24 +301,11 @@ class AdminLPShippingOrderCreatedController extends ModuleAdminController
      */
     public function saveShipmentsBulk(array $rowIds)
     {
-        $ids = [];
-        foreach ($rowIds as $rowId) {
-            $row = LPShippingOrder::getOrderByRowId($rowId);
-            $ids[] = $row['id_order'];
-        }
+        $orders = LPShippingOrder::getOrdersById($rowIds);
+        $messages = $this->lpOrderService->saveShipmentsBulk($orders);
 
-        $errors = $this->lpOrderService->saveShipmentsBulk($ids);
-        
-        if (is_array($errors)) {
-            if (!empty($errors)) {
-                foreach ($errors as $error) {
-                    $this->addMessage(false, $error);
-                }
-            } 
-        } elseif (is_string($errors)) {
-            $this->addMessage(false, $errors);
-        } else {
-            $this->addMessage(true, 'Shipments initiated successfully');
+        if (!empty($messages)) {
+            $this->errors = $messages;
         }
     }
     

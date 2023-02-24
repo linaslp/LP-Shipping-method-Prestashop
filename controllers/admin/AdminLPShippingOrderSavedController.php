@@ -298,13 +298,14 @@ class AdminLPShippingOrderSavedController extends ModuleAdminController
      */
     public function formShipmentsBulk(array $rowIds)
     {
-        $ids = [];
-        foreach ($rowIds as $rowId) {
-            $row = LPShippingOrder::getOrderByRowId($rowId);
-            $ids[] = $row['id_order'];
+        $orders = LPShippingOrder::getOrdersById($rowIds);
+
+        if (!$orders) {
+            $this->addMessage(false, 'Unable to find LP orders');
+            return;
         }
 
-        $errors = $this->lpOrderService->formShipmentsBulk($ids);
+        $errors = $this->lpOrderService->formShipmentsBulk($orders);
         
         if (is_array($errors)) {
             if (!empty($errors)) {

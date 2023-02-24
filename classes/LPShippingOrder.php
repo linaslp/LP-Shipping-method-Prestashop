@@ -68,6 +68,7 @@ class LPShippingOrder extends ObjectModel
         ),
     ];
 
+    private const TABLE_NAME = 'lpshipping_order';
 
     /**
      * Save batch of terminals to DB
@@ -318,5 +319,21 @@ class LPShippingOrder extends ObjectModel
         $results = DB::getInstance()->getRow($query);
 
         return $results;
+    }
+
+    /**
+     * @return array|false|mysqli_result|PDOStatement|resource|null
+     */
+    public static function getOrdersById(array $ids) 
+    {
+        $query = new DbQuery();
+        $idString = implode(",", $ids);
+
+        $query
+            ->select('*')
+            ->from(self::TABLE_NAME)
+            ->where(sprintf('id_lpshipping_order IN (%s)', $idString));
+
+        return DB::getInstance()->executeS($query);
     }
 }

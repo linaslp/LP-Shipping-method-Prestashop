@@ -53,7 +53,7 @@ class LPShipping extends CarrierModule
     {
         $this->name = 'lpshipping';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.0.13';
+        $this->version = '1.0.14';
         $this->author = 'Kirotech';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -111,8 +111,6 @@ class LPShipping extends CarrierModule
             $this->registerHook('actionAdminControllerSetMedia'); // hook to display module block in single order page
             $this->registerHook('actionValidateStepComplete');
             $this->registerHook('actionCarrierProcess');
-            $this->registerHook('actionObjectCartUpdateAfter');
-
         }
 
         return $resultOfInstall;
@@ -133,8 +131,7 @@ class LPShipping extends CarrierModule
         $this->unregisterHook('orderDetailDisplayed');
         $this->unregisterHook('displayAdminOrder');
         $this->unregisterHook('actionCarrierProcess');
-        $this->unregisterHook('actionObjectCartUpdateAfter');
-
+        
         AdminLPShippingConfigurationController::removeConfiguration();
 
         $setup = new LPShippingDbSetup();
@@ -354,23 +351,19 @@ class LPShipping extends CarrierModule
                 'LPShippingCartId' => $params['cart']->id,
                 'MessageTerminalNotSelected' => $this->l('Please select a terminal'),
             ]);
+    
+            
             if ($isPs17) {
+                $this->context->controller->registerJavascript('modules-lpshipping-select2-js', 'modules/' . $this->name . '/views/js/select2.min.js');
+                $this->context->controller->registerStylesheet('modules-lpshipping-select2-css', 'modules/' . $this->name . '/views/css/select2.min.css');
                 $this->context->controller->registerJavascript('modules-lpshipping-js', 'modules/' . $this->name . '/views/js/front.js');
                 $this->context->controller->registerStylesheet('modules-lpshipping-css', 'modules/' . $this->name . '/views/css/front.css');
             } else {
+                $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
+                $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');
                 $this->context->controller->addJS($this->_path . 'views/js/front.js');
                 $this->context->controller->addCss($this->_path . 'views/css/front.css');
             }
-        }
-
-        if ($isPs17) {
-            $this->context->controller->registerJavascript('modules-lpshipping-select2-js', 'modules/' . $this->name . '/views/js/select2.min.js');
-            $this->context->controller->registerStylesheet('modules-lpshipping-select2-css', 'modules/' . $this->name . '/views/css/select2.min.css');
-            $this->context->controller->registerJavascript('modules-lpshipping-js', 'modules/' . $this->name . '/views/js/front.js');
-            $this->context->controller->registerStylesheet('modules-lpshipping-css', 'modules/' . $this->name . '/views/css/front.css');
-        } else {
-            $this->context->controller->addJS($this->_path . 'views/js/select2.min.js');
-            $this->context->controller->addCss($this->_path . 'views/css/select2.min.css');
         }
     }
 
@@ -567,6 +560,7 @@ class LPShipping extends CarrierModule
             $orderDocument['cn_parts_weight'] = $order['weight'];
             $orderDocument['parcel_type'] = 'SELL';
             $orderDocument['parcel_notes'] = 'Sell Items';
+            $orderDocument['cn_parts_summary'] = $cart->getProducts()[0]['legend'];
         }
         $data = array_merge($data, $orderDocument);
 
@@ -793,13 +787,22 @@ class LPShipping extends CarrierModule
         $cart = $params['cart'];
         $order = $params['order'];
 
-        $lpOrderArray = LPShippingOrder::getOrderByCartId($cart->id);
-        $lpOrder = new LPShippingOrder($lpOrderArray['id_lpshipping_order']);
+        $carrier = new Carrier($cart->id_carrier);
+        if ($carrier->external_module_name === $this->name) {
+            $orderData = [
+                'selectedCarrierId' => $carrier->id,
+                'cartId' => $cart->id,
+                'terminalId' => (new LPShippingCartTerminal($cart->id))->id_lpexpress_terminal,
+                'orderId' => $order->id
 
-        if (Validate::isLoadedObject($lpOrder)) {
-            $lpOrder->id_order = $order->id;
+            ];
+           
+            if(!$this->saveOrder($orderData)) {
+                $this->context->controller->errors[] = $this->l('Failed to save carrier option. Please try again.');
+                $params['completed'] = false;
 
-            $lpOrder->update();
+                return false;
+            }
         }
     }
 
@@ -818,7 +821,7 @@ class LPShipping extends CarrierModule
         if ($isPs17 && $params['step_name'] !== 'delivery') {
             return true;
         }
-
+        
         $terminal = Tools::getValue('lpshipping_express_terminal');
         if ((int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') === (int)$params['cart']->id_carrier && (int)$terminal == -1) {
             $params['completed'] = false;
@@ -828,29 +831,7 @@ class LPShipping extends CarrierModule
             return false;
         }
 
-        $carrier = new Carrier($params['cart']->id_carrier);
-        if ($carrier->external_module_name === $this->name) {
-            $orderData = [
-                'selectedCarrierId' => $carrier->id,
-                'cartId' => $params['cart']->id,
-                'terminalId' => Tools::getValue('lpshipping_express_terminal')
-
-            ];
-            if ($this->saveOrder($orderData)) {
-                return true;
-            }
-
-            $this->context->controller->errors[] = $this->l('Failed to save carrier option. Please try again.');
-            $params['completed'] = false;
-
-            return false;
-        }
-    }
-
-    public function hookActionObjectCartUpdateAfter($params)
-    {
-        $orderService = new LPShippingOrderService();
-        $orderService->saveOrder($params['object']);
+        
     }
 
     public function saveOrder(array $orderData)
@@ -863,11 +844,12 @@ class LPShipping extends CarrierModule
             /* Create LPShippingOrder object */
             $lpOrderArray = LPShippingOrder::getOrderByCartId($orderData['cartId']);
             $cart = new Cart($orderData['cartId']);
-
+            
             if (is_array($lpOrderArray) && !empty($lpOrderArray)) {
                 $lpOrder = new LPShippingOrder($lpOrderArray['id_lpshipping_order']);
-
+                
                 if (Validate::isLoadedObject($lpOrder)) {
+                    $lpOrder->id_order = $orderData['orderId'];
                     $lpOrder->selected_carrier = $carrierInfo['configuration_name'];
                     $lpOrder->weight = $cart->getTotalWeight();
                     $lpOrder->cod_available = $lpOrderService->isCodAvailable($orderData['cartId']);
@@ -903,12 +885,13 @@ class LPShipping extends CarrierModule
                 $lpOrder->sender_postal_code = $senderAddress->getPostalCode();
                 $lpOrder->sender_country = $senderAddress->getCountry();
                 $lpOrder->shipping_template_id = $lpOrderService->getDefaultTemplate($selectedCarrier);
+                $lpOrder->id_order = $orderData['orderId'];
                 if ($orderData['terminalId'] !== null) {
                     $lpOrder->id_lpexpress_terminal = $orderData['terminalId'];
                 }
                 $lpOrder->save();
             }
-
+            
             $declarationData = [
                 LPShippingDocument::PARENT_KEY => LPShippingOrder::getOrderByCartId($orderData['cartId'])[LPShippingDocument::PARENT_KEY],
                 'parcel_type' => 'SELL',
@@ -919,7 +902,7 @@ class LPShipping extends CarrierModule
                 'cn_parts_currency_code' => 'EUR',
                 'cn_parts_weight' => $cart->getTotalWeight(),
                 'cn_parts_quantity' => $cart->getNbProducts($orderData['cartId']),
-                'cn_parts_summary' => ''
+                'cn_parts_summary' => $cart->getProducts()[0]['legend']
             ];
             $lpOrderService->updateShippingItemWithDeclaration($declarationData);
 
@@ -986,27 +969,29 @@ class LPShipping extends CarrierModule
         if ($carrier->external_module_name !== $this->name) {
             return true;
         }
-
+        
+        $carriersKeyedByName = Configuration::getMultiple([
+            LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_HOME,
+            LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_ABROAD,
+            LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_TERMINAL,
+            LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_POST,
+            LpShippingCourierConfigNames::LP_SHIPPING_CARRIER_ABROAD,
+            LpShippingCourierConfigNames::LP_SHIPPING_CARRIER_HOME_OFFICE_POST
+        ]);
+       
         $deliveryAddress = new Address($cart->id_address_delivery);
         $country = new Country($deliveryAddress->id_country);
-        if ($country->iso_code == null) {
-            if (
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_HOME') ||
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_ABROAD') ||
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') ||
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_POST') ||
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_CARRIER_ABROAD')
-            ) {
-                return $shippingCost;
-            }
+
+        if ($country->iso_code == null && in_array($carrier->id, $carriersKeyedByName)) {
+            return $shippingCost;
         }
 
         if ($country->iso_code === 'LT') {
             if (
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_HOME') ||
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_ABROAD') ||
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') ||
-                (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_POST')
+                (int)$carrier->id === (int)$carriersKeyedByName[LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_HOME] ||
+                (int)$carrier->id === (int)$carriersKeyedByName[LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_TERMINAL] ||
+                (int)$carrier->id === (int)$carriersKeyedByName[LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_POST] ||
+                (int)$carrier->id === (int)$carriersKeyedByName[LpShippingCourierConfigNames::LP_SHIPPING_CARRIER_HOME_OFFICE_POST]
             ) {
                 return $shippingCost;
             }
@@ -1014,8 +999,8 @@ class LPShipping extends CarrierModule
             return false;
         }
         if (
-            (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_CARRIER_ABROAD') ||
-            (int)$carrier->id === (int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_ABROAD')
+            (int)$carrier->id === (int)$carriersKeyedByName[LpShippingCourierConfigNames::LP_SHIPPING_CARRIER_ABROAD] ||
+            (int)$carrier->id === (int)$carriersKeyedByName[LpShippingCourierConfigNames::LP_SHIPPING_EXPRESS_CARRIER_ABROAD]
         ) {
             return $shippingCost;
         }

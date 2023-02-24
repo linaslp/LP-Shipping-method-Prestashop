@@ -144,10 +144,29 @@ class LPShippingItemTemplate extends ObjectModel
             }
 
             $results = DB::getInstance()->getRow($query);
-
+           
             return $results['template_id'];
         } else {
             return 0;
         }
+    }
+
+    /**
+     * @return bool|array
+     */
+    public static function getShippingTemplateByTypeAndSize(?string $type, ?string $size = null)
+    {
+        if (!$type || empty(trim($type))) {
+            return null;
+        }
+
+        $query = new DbQuery();
+
+        $query->select('*');
+        $query->from(self::$tableName);
+        $query->where(sprintf('type = "%s"', $type));            
+        $query->where(sprintf('size = "%s"', $size));
+
+        return DB::getInstance()->getRow($query);
     }
 }

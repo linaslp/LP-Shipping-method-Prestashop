@@ -391,7 +391,7 @@ class LPShippingRequest extends LPShippingBaseRequest
             CURLOPT_POSTFIELDS => $bodyEncoded,
             CURLOPT_RETURNTRANSFER => true
         ];
-
+        
         $instance->setHeaders($instance->buildAuthHeader()); // sets default headers
         $instance->setOptions($requestOptions);
 
@@ -685,25 +685,16 @@ class LPShippingRequest extends LPShippingBaseRequest
         $instance = self::getInstance();
         $endpoint = $instance->baseUrl . self::API_VERSION . 'shipping/initiate';
 
-        $ids = "[";
-        for ($i = 0, $iMax = count($orderIds); $i < $iMax; $i++) {
-            $ids .= "\"{$orderIds[$i]}\"";
-            if ($i != (count($orderIds) - 1)) {
-                $ids .= ",";
-            }
-        }
-        $ids .= "]";
-
         $requestOptions = [
             CURLOPT_URL => $endpoint,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $ids,
+            CURLOPT_POSTFIELDS => json_encode($orderIds),
             CURLOPT_RETURNTRANSFER => true
         ];
 
         $instance->setHeaders($instance->buildAuthHeader()); // sets default headers
         $instance->setOptions($requestOptions);
-
+    
         $res = $instance->executeCallAndGetResult();
         if (!$instance->errorHandler->isRequestCompletedSuccessfully($res)) {
             return $res;
@@ -769,7 +760,6 @@ class LPShippingRequest extends LPShippingBaseRequest
         foreach ($ids as $id) {
             $endpoint .= 'itemId=' . $id . '&';
         }
-
         $endpoint .= 'layout=' . $stickerSize;
 
         $requestOptions = [
@@ -814,7 +804,6 @@ class LPShippingRequest extends LPShippingBaseRequest
 
         $instance->setHeaders($instance->buildAuthHeader()); // sets default headers
         $instance->setOptions($requestOptions);
-
         $res = $instance->executeCallAndGetResult();
         if (!$instance->errorHandler->isRequestCompletedSuccessfully($res)) {
             return $res;
@@ -912,19 +901,10 @@ class LPShippingRequest extends LPShippingBaseRequest
         $instance = self::getInstance();
         $endpoint = $instance->baseUrl . self::API_VERSION . 'tracking';
 
-        $ids = "[";
-        for ($i = 0, $iMax = count($lpInternalIds); $i < $iMax; $i++) {
-            $ids .= "\"{$lpInternalIds[$i]}\"";
-            if ($i != (count($lpInternalIds) - 1)) {
-                $ids .= ",";
-            }
-        }
-        $ids .= "]";
-
         $requestOptions = [
             CURLOPT_URL => $endpoint,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $ids,
+            CURLOPT_POSTFIELDS => json_encode($lpInternalIds),
             CURLOPT_RETURNTRANSFER => true
         ];
 

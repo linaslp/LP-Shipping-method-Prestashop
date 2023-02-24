@@ -22,6 +22,25 @@ class LpShippingConsts
         'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV',
         'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'
     ];
+
+    public const SMALL_CORRESPONDENCE = 'SmallCorrespondence';
+    public const MEDIUM_CORRESPONDENCE = 'MediumCorrespondence';
+    public const PARCEL = 'Parcel';
+
+    public const SMALL_CORRESPONDENCE_SIZE_NAME = 'Small';
+    public const MEDIUM_CORRESPONDENCE_SIZE_NAME = 'Medium';
+
+    public const SMALL_CORRESPONDENCE_OLD = 'SMALL_CORESPONDENCE';
+    public const SMALL_CORESPONDENCE_TRACKED_OLD = 'SMALL_CORESPONDENCE_TRACKED';
+    public const MEDIUM_CORRESPONDENCE_OLD = 'BIG_CORESPONDENCE';
+    public const MEDIUM_CORRESPONDENCE_TRACKED_OLD = 'MEDIUM_CORESPONDENCE_TRACKED';
+    public const PARCEL_OLD = 'PACKAGE';
+    
+    public const LP_SHIPPING_BULK_INIT_CHUNK_SIZE = 50;
+    public const LP_SHIPPING_LABEL_PRINT_CHUNK_SIZE = 50;
+
+    public const STATUS_PENDING = 'PENDING';
+    public const STATUS_NOT_FOUND = 'STATE_NOT_FOUND';
 }
 
 class LpShippingCourierConfigNames {

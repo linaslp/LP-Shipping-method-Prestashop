@@ -32,10 +32,6 @@ $(document).ready( function () {
 });
 
 function registerListeners() {
-    $(document).on('click', '[name="confirmDeliveryOption"], [name="processCarrier"], body#order-opc #HOOK_PAYMENT .payment_module a, #confirm_order', function (e) {
-        saveLPShippingOrder(e);
-    });
-
     $(document).on('change', '#lpshipping_express_terminal', function () {
         var terminalId = $('#lpshipping_express_terminal').val();
         carriersData.terminalId = terminalId;

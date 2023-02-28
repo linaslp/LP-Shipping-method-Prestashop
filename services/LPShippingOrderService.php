@@ -1,14 +1,12 @@
 <?php
 
-use Doctrine\ORM\Query\Expr\Func;
-
 require_once(dirname(__FILE__) . './../api/types/AddressType.php');
 require_once(dirname(__FILE__) . './../api/types/ReceiverType.php');
 require_once(dirname(__FILE__) . './../api/types/SenderType.php');
 require_once(dirname(__FILE__) . './../classes/LPShippingDocument.php');
 require_once(dirname(__FILE__) . './../classes/LPShippingDocumentPart.php');
 require_once(dirname(__FILE__) . './../classes/LPShippingConsts.php');
-use \VIISON\AddressSplitter\AddressSplitter;
+
 /**
  * LPShippingOrderService is for helper methods with order service
  */

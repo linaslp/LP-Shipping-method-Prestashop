@@ -822,8 +822,8 @@ class LPShipping extends CarrierModule
             return true;
         }
         
-        $terminal = Tools::getValue('lpshipping_express_terminal');
-        if ((int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') === (int)$params['cart']->id_carrier && (int)$terminal == -1) {
+        $terminalId = Tools::getValue('lpshipping_express_terminal');
+        if ((int)Configuration::get('LP_SHIPPING_EXPRESS_CARRIER_TERMINAL') === (int)$params['cart']->id_carrier && (int)$terminalId == -1) {
             $params['completed'] = false;
             $this->context->controller->errors[] =
                 $this->l('Please select terminal.');
@@ -831,7 +831,24 @@ class LPShipping extends CarrierModule
             return false;
         }
 
-        
+        try {            
+            $cartId = $params['cart']->id;
+            $terminal = new LPShippingCartTerminal($cartId);
+            $terminalId = $terminalId ?? null;
+
+            if($terminal->id_cart){
+                LPShippingCartTerminal::updateTerminalByCartId($cartId, $terminalId);
+            } else if ($terminalId) {
+                $terminal->id_cart = $cartId;
+                $terminal->id_lpexpress_terminal = $terminalId;
+                $terminal->save();
+            }
+        } catch(Exception $e) {
+            $params['completed'] = false;
+            $this->context->controller->errors[] = $this->l('Error while saving selected carrier information');
+
+            return false;
+        }
     }
 
     public function saveOrder(array $orderData)

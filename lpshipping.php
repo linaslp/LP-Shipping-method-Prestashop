@@ -834,7 +834,7 @@ class LPShipping extends CarrierModule
         try {            
             $cartId = $params['cart']->id;
             $terminal = new LPShippingCartTerminal($cartId);
-            $terminalId = $terminalId ?? null;
+            $terminalId = (int)$terminalId <= 0 ? null : $terminalId;
 
             if($terminal->id_cart){
                 LPShippingCartTerminal::updateTerminalByCartId($cartId, $terminalId);

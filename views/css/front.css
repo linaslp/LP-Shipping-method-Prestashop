@@ -43,3 +43,6 @@
     }
 }
 
+body#checkout section.checkout-step .delivery-options .delivery-option img {
+    max-width: 50px;
+}

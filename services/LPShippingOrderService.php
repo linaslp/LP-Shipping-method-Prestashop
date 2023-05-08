@@ -60,7 +60,7 @@ class LPShippingOrderService
         $address->setCountry($country->iso_code);
         $address->setLocality($PSAddress->city);
         $address->setPostalCode($PSAddress->postcode);
-        $address->setStreet($PSAddress->address1);
+        $address->setStreet(str_replace($this->formBuildingNumber($PSAddress->address1), '', $PSAddress->address1));
         $address->setBuilding($this->formBuildingNumber($PSAddress->address1));
 
         if ($country->iso_code != 'LT') {

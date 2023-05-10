@@ -53,8 +53,8 @@ class LPShipping extends CarrierModule
     {
         $this->name = 'lpshipping';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.0.16';
-        $this->author = 'Kirotech';
+        $this->version = '1.0.17';
+        $this->author = 'Kirotech / ITBrolis';
         $this->need_instance = 0;
         $this->bootstrap = true;
 

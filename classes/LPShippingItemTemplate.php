@@ -36,9 +36,9 @@ class LPShippingItemTemplate extends ObjectModel
 
     /**
      * Save batch of shipping templates to DB
-     * 
+     *
      * @param array $shippingTemplates
-     * 
+     *
      * @return bool
      */
     public static function saveShippingTemplateBatch(array $shippingTemplates)
@@ -52,9 +52,9 @@ class LPShippingItemTemplate extends ObjectModel
 
     /**
      * Save shipping template to DB
-     * 
+     *
      * @param array $shippingTemplate
-     * 
+     *
      * @return bool
      */
     public static function saveShippingTemplate(array $row)
@@ -82,9 +82,9 @@ class LPShippingItemTemplate extends ObjectModel
 
     /**
      * Get one ShippingTemplate row
-     * 
+     *
      * @param int $id
-     * 
+     *
      * @return LPShippingItemTemplate|null
      */
     public static function getShippingTemplate($id)
@@ -102,9 +102,9 @@ class LPShippingItemTemplate extends ObjectModel
 
     /**
      * Get ShippingItemTemplates by type
-     * 
+     *
      * @param string $type
-     * 
+     *
      * @return array
      */
     public static function getShippingTemplatesByType($type)
@@ -144,7 +144,7 @@ class LPShippingItemTemplate extends ObjectModel
             }
 
             $results = DB::getInstance()->getRow($query);
-           
+
             return $results['template_id'];
         } else {
             return 0;
@@ -154,7 +154,7 @@ class LPShippingItemTemplate extends ObjectModel
     /**
      * @return bool|array
      */
-    public static function getShippingTemplateByTypeAndSize(?string $type, ?string $size = null)
+    public static function getShippingTemplateByTypeAndSize($type, $size = null)
     {
         if (!$type || empty(trim($type))) {
             return null;
@@ -164,7 +164,7 @@ class LPShippingItemTemplate extends ObjectModel
 
         $query->select('*');
         $query->from(self::$tableName);
-        $query->where(sprintf('type = "%s"', $type));            
+        $query->where(sprintf('type = "%s"', $type));
         $query->where(sprintf('size = "%s"', $size));
 
         return DB::getInstance()->getRow($query);

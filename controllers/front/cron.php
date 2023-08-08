@@ -51,6 +51,21 @@ class LPShippingCronModuleFrontController extends ModuleFrontController
             die('Failed to get terminals from API.');
         }
         foreach ($newTerminals as $newTerminal) {
+
+            $oldTerminals = LPShippingTerminal::getTerminalsByTerminalId($newTerminal['id']);
+            if(count($oldTerminals) > 1)
+            {
+                foreach ($oldTerminals as $key => $oldTerminal)
+                {
+                    if($key == 0)
+                    {
+                        continue;
+                    }
+                    $lpShippingTerminal = new LPShippingTerminal($oldTerminal['id_lpexpress_terminal']);
+                    $lpShippingTerminal->delete();
+                }
+            }
+
             $oldTerminal = LPShippingTerminal::getTerminalByTerminalId($newTerminal['id']);
 
             $success = LPShippingTerminal::updateTerminal($oldTerminal['id_lpexpress_terminal'], $newTerminal);

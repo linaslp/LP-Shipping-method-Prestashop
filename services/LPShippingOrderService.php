@@ -54,17 +54,19 @@ class LPShippingOrderService
         $psOrder = new Order($order['id_order']);
         $PSAddress = new Address($psOrder->id_address_delivery);
         $country = new Country($PSAddress->id_country);
+        $fullAddress = $PSAddress->address1. ' ' . $PSAddress->address2;
+
 
         $address = new AddressType();
         $address->setCurrentAddressType($address::STRUCTURED_ADDRESS);
         $address->setCountry($country->iso_code);
         $address->setLocality($PSAddress->city);
         $address->setPostalCode($PSAddress->postcode);
-        $address->setStreet(str_replace($this->formBuildingNumber($PSAddress->address1), '', $PSAddress->address1));
-        $address->setBuilding($this->formBuildingNumber($PSAddress->address1));
+        $address->setStreet(str_replace($this->formBuildingNumber($fullAddress), '', $fullAddress));
+        $address->setBuilding($this->formBuildingNumber($fullAddress));
 
         if ($country->iso_code != 'LT') {
-            $address->setNotLithuanianAddress($PSAddress->address1);
+            $address->setNotLithuanianAddress($fullAddress);
             $address->setCurrentAddressType($address::NOT_LITHUANIAN_ADDRESS);
         }
 

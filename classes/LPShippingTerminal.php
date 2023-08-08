@@ -194,4 +194,15 @@ class LPShippingTerminal extends ObjectModel
 
         return $result;
     }
+
+    public static function getTerminalsByTerminalId($terminalId)
+    {
+        $query = new DbQuery();
+
+        $query->select('*')->from('lpshipping_express_terminal')->where('terminal_id = ' . $terminalId);
+
+        $result = DB::getInstance()->executeS($query);
+
+        return $result;
+    }
 }

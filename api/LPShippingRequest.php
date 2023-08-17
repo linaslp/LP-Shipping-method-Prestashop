@@ -403,6 +403,7 @@ class LPShippingRequest extends LPShippingBaseRequest
         $result = json_decode($res, true);
         $instance->refreshCurl();
 
+
         return $result;
     }
 
@@ -489,21 +490,26 @@ class LPShippingRequest extends LPShippingBaseRequest
         if (!$documentPart) {
             return $result;
         }
+        $cnParts = [];
+
+        $lpShippingOrder = new LPShippingOrder($document['id_lpshipping_order']);
+        $psOrderId = $lpShippingOrder->id_order;
+        $order = new Order($psOrderId);
+        foreach ($order->getProducts() as $product) {
+            $cnParts[] = [
+                "countryCode" => $documentPart['country_code'],
+                "currencyCode" => $documentPart['currency_code'],
+                "amount" => (float)$product['total_price_tax_incl'],
+                "weight" => (int)($product['product_weight'] * $product['product_quantity'] * 1000),
+                "summary" => substr($product['product_name'], 0, 64),
+                "quantity" => (int)$product['product_quantity'],
+            ];
+        }
 
         $documentDto = [
             'parcelType' => $document['parcel_type'],
             'parcelTypeNotes' => $document['notes'],
-            'cnParts' => [
-                [
-                    'amount' => (int)$documentPart['amount'],
-                    'countryCode' => $documentPart['country_code'],
-                    'currencyCode' => $documentPart['currency_code'],
-                    'weight' => (int)((float)$documentPart['weight'] * 1000),
-                    'quantity' => (int)$documentPart['quantity'],
-                    'summary' => !empty($documentPart['summary']) ? $documentPart['summary'] : ' '
-                ]
-            ]
-
+            'cnParts' => $cnParts
         ];
 
         if ($cn22Required) {

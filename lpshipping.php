@@ -789,6 +789,7 @@ class LPShipping extends CarrierModule
 
         $carrier = new Carrier($cart->id_carrier);
         if ($carrier->external_module_name === $this->name) {
+            require_once(dirname(__FILE__).'/classes/LPShippingCartTerminal.php');
             $orderData = [
                 'selectedCarrierId' => $carrier->id,
                 'cartId' => $cart->id,
@@ -833,6 +834,7 @@ class LPShipping extends CarrierModule
 
         try {            
             $cartId = $params['cart']->id;
+            require_once(dirname(__FILE__).'/classes/LPShippingCartTerminal.php');
             $terminal = new LPShippingCartTerminal($cartId);
             $terminalId = (int)$terminalId <= 0 ? null : $terminalId;
 
